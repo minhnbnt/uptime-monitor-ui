@@ -1,0 +1,23 @@
+import type { ServerStatus } from '../types/api';
+
+interface Props {
+  status: ServerStatus;
+}
+
+export default function StatusBadge({ status }: Props) {
+  const active = status === 'active';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        active
+          ? 'bg-success/10 text-success'
+          : 'bg-warning/10 text-warning'
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-success' : 'bg-warning'}`}
+      />
+      {status}
+    </span>
+  );
+}
