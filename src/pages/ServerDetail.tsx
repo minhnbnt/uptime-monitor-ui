@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiDeleteServer, apiListServersOntime } from '../lib/api';
+import { apiGetServer, apiDeleteServer } from '../lib/api';
 import { ApiError } from '../lib/api';
-import type { ServerObject, ServerWithOntime } from '../types/api';
+import type { ServerObject } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -11,7 +11,6 @@ export default function ServerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [server, setServer] = useState<ServerObject | null>(null);
-  const [ontimeData, setOntimeData] = useState<ServerWithOntime | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -21,14 +20,9 @@ export default function ServerDetail() {
     setLoading(true);
     setError('');
 
-    Promise.all([
-      apiGetServer(Number(id)),
-      apiListServersOntime(1, 30),
-    ])
-      .then(([serverRes, ontimeRes]) => {
-        setServer(serverRes.data);
-        const found = ontimeRes.data.find((s) => s.server.id === Number(id));
-        if (found) setOntimeData(found);
+    apiGetServer(Number(id))
+      .then((res) => {
+        setServer(res.data);
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -183,7 +177,7 @@ export default function ServerDetail() {
       {/* Ontime chart */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <h2 className="mb-4 text-lg font-semibold text-text-primary">Uptime (Last 30 Days)</h2>
-        <OntimeChart data={ontimeData?.ontime_stats ?? []} height={250} />
+        <OntimeChart data={server.ontime_stats ?? []} height={250} />
       </div>
     </div>
   );
