@@ -14,6 +14,9 @@ import type {
   ServerWithOntime,
   TestEndpointRequest,
   TestEndpointResponse,
+  SearchServersResponse,
+  ImportServersResponse,
+  NotificationConfig,
 } from '../types/api';
 
 const BASE_URL = 'http://localhost:8080';
@@ -27,6 +30,13 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+  }
+}
+
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Session expired');
+    this.name = 'SessionExpiredError';
   }
 }
 
@@ -87,9 +97,33 @@ export function setStoredUser(user: UserProfile) {
   setItem('user', JSON.stringify(user));
 }
 
+export async function initAuth(): Promise<UserProfile | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken } satisfies RefreshTokenRequest),
+    });
+    if (!res.ok) {
+      clearTokens();
+      return null;
+    }
+    const data = await res.json() as AuthResponse;
+    setTokens(data.access_token, data.refresh_token);
+    setStoredUser(data.user);
+    return data.user;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
-async function attemptRefresh(): Promise<boolean> {
+export async function attemptRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -126,22 +160,35 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = getAccessToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+  const headers: Record<string, string> = {};
+
+  // Only set Content-Type if body is not FormData
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // Merge with provided headers
+  const providedHeaders = options.headers as Record<string, string> | undefined;
+  if (providedHeaders) {
+    Object.assign(headers, providedHeaders);
+  }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
   let res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
-  if (res.status === 401 && getRefreshToken()) {
+  if (res.status === 401) {
     const refreshed = await attemptRefresh();
     if (refreshed) {
       const newToken = getAccessToken();
       headers['Authorization'] = `Bearer ${newToken}`;
       res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    } else {
+      clearTokens();
+      window.dispatchEvent(new CustomEvent('session-expired'));
+      throw new SessionExpiredError();
     }
   }
 
@@ -155,8 +202,9 @@ async function request<T>(
     );
   }
 
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export function apiLogin(data: LoginRequest): Promise<AuthResponse> {
@@ -224,6 +272,124 @@ export function apiTestEndpoint(data: TestEndpointRequest): Promise<TestEndpoint
   return request<TestEndpointResponse>('/api/v1/test-endpoint', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+export function apiSearchServers(
+  query: string,
+  page = 1,
+  perPage = 20,
+  sortBy = 'name',
+  sortOrder = 'asc',
+): Promise<SearchServersResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    page: String(page),
+    per_page: String(perPage),
+    sort_by: sortBy,
+    sort_order: sortOrder,
+  });
+  return request<SearchServersResponse>(`/api/v1/servers/search?${params}`);
+}
+
+export async function apiExportServers(
+  query?: string,
+  status?: string,
+  from?: string,
+  to?: string,
+  sortBy = 'name',
+  sortOrder = 'asc',
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    sort_by: sortBy,
+    sort_order: sortOrder,
+  });
+  if (query) params.set('q', query);
+  if (status) params.set('status', status);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/servers/export?${params}`, { headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const err = body?.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? 'UNKNOWN',
+      err?.message ?? `HTTP ${res.status}`,
+    );
+  }
+  return res.blob();
+}
+
+export function apiImportServers(file: File): Promise<ImportServersResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return fetch(`${BASE_URL}/api/v1/servers/import`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      const err = body?.error;
+      throw new ApiError(
+        res.status,
+        err?.code ?? 'UNKNOWN',
+        err?.message ?? `HTTP ${res.status}`,
+      );
+    }
+    return res.json() as Promise<ImportServersResponse>;
+  });
+}
+
+export async function apiGetImportTemplate(): Promise<Blob> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}/api/v1/servers/import`, { headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const err = body?.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? 'UNKNOWN',
+      err?.message ?? `HTTP ${res.status}`,
+    );
+  }
+  return res.blob();
+}
+
+export function apiGetNotificationConfig(): Promise<NotificationConfig> {
+  return request<NotificationConfig>('/api/v1/notifications/config');
+}
+
+export function apiUpdateNotificationConfig(config: NotificationConfig): Promise<void> {
+  return request<void>('/api/v1/notifications/config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+}
+
+export function apiSendReport(): Promise<void> {
+  return request<void>('/api/v1/notifications/send-report', {
+    method: 'POST',
   });
 }
 

@@ -13,6 +13,7 @@ export interface ServerObject {
   endpoint: Endpoint | null;
   created_at: string;
   updated_at: string;
+  ontime_stats?: OntimeStats[];
 }
 
 export interface CreateServerRequest {
@@ -115,4 +116,19 @@ export interface TestEndpointResponse {
   success: boolean;
   status_code: number;
   error?: string;
+}
+
+export type SearchServersResponse = ServerListResponse;
+
+export interface ImportServersResponse {
+  success: boolean;
+  imported: number;
+  failed: number;
+  errors?: string[];
+}
+
+export interface NotificationConfig {
+  from_date?: string;
+  to_date?: string;
+  digest_time?: string;
 }
