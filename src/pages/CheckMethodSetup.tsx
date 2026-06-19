@@ -114,21 +114,23 @@ export default function CheckMethodSetup() {
           onEndpointChange={setEndpoint}
         />
 
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-          <Link
-            to={`/servers/${server.id}`}
-            className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:text-slate-200"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={saving || !endpoint.url.trim()}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? <LoadingSpinner size="sm" /> : null}
-            Save Configuration
-          </button>
+        <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
+          <div className="flex gap-3">
+            <Link
+              to={`/servers/${server.id}`}
+              className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:text-slate-200"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={saving || !endpoint.url.trim()}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? <LoadingSpinner size="sm" /> : null}
+              Save Configuration
+            </button>
+          </div>
         </div>
       </form>
     </div>

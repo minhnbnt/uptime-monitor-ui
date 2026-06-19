@@ -188,24 +188,30 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
               ? 'bg-success/10 text-success'
               : 'bg-danger/10 text-danger'
           }`}>
-            <div className="flex items-center gap-2">
-              {testResult.success ? (
-                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
+            {testResult.error ? (
+              <div className="flex items-center gap-2">
                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              )}
-              <span className="font-medium">
-                {testResult.success ? 'Success' : 'Failed'}
-              </span>
-              <span className="text-slate-500">·</span>
-              <span>Status: {testResult.statusCode}</span>
-            </div>
-            {testResult.error && (
-              <p className="mt-1 text-xs opacity-80">{testResult.error}</p>
+                <span>{testResult.error}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {testResult.success ? (
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                <span className="font-medium">
+                  {testResult.success ? 'Success' : 'Failed'}
+                </span>
+                <span className="text-slate-500">·</span>
+                <span>Status: {testResult.statusCode}</span>
+              </div>
             )}
           </div>
         )}
