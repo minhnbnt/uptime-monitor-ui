@@ -4,11 +4,11 @@ import { useAuth } from '../lib/auth';
 import { ApiError } from '../lib/api';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
   const navigate = useNavigate();
   const [loginStr, setLoginStr] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(sessionExpired ? 'Your session has expired. Please log in again.' : '');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

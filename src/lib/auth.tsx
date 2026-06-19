@@ -4,34 +4,50 @@ import {
   apiLogin,
   apiRegister,
   apiLogout,
+  initAuth,
   setTokens,
   clearTokens,
-  getStoredUser,
   setStoredUser,
   getRefreshToken,
+  attemptRefresh,
 } from './api';
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
+  sessionExpired: boolean;
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(getStoredUser);
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredUser();
-    if (stored) setUser(stored);
+    initAuth().then((u) => {
+      if (u) setUser(u);
+      setIsLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setSessionExpired(true);
+    };
+    window.addEventListener('session-expired', handler);
+    return () => window.removeEventListener('session-expired', handler);
   }, []);
 
   const login = useCallback(async (data: LoginRequest) => {
     setIsLoading(true);
+    setSessionExpired(false);
     try {
       const res = await apiLogin(data);
       setTokens(res.access_token, res.refresh_token);
@@ -44,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (data: RegisterRequest) => {
     setIsLoading(true);
+    setSessionExpired(false);
     try {
       const res = await apiRegister(data);
       setTokens(res.access_token, res.refresh_token);
@@ -67,13 +84,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshTokenFn = useCallback(async () => {
+    const success = await attemptRefresh();
+    if (success) {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser) as UserProfile);
+      }
+    }
+    return success;
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, sessionExpired, login, register, logout, refreshToken: refreshTokenFn }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
