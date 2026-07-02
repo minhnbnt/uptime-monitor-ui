@@ -4,13 +4,17 @@ import type { ImportServersResponse } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 type Tab = 'import' | 'export';
-type ServerStatus = 'active' | 'paused';
+type SortBy = 'name' | 'created_at';
+type SortOrder = 'asc' | 'desc';
 
 export default function ServerImportExport() {
   const [tab, setTab] = useState<Tab>('export');
 
   // Export state
-  const [exportStatus, setExportStatus] = useState<ServerStatus | ''>('');
+  const [exportQuery, setExportQuery] = useState('');
+  const [exportLimit, setExportLimit] = useState(100);
+  const [exportSortBy, setExportSortBy] = useState<SortBy>('name');
+  const [exportSortOrder, setExportSortOrder] = useState<SortOrder>('asc');
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState('');
 
@@ -27,11 +31,18 @@ export default function ServerImportExport() {
     setExportError('');
     setExportLoading(true);
     try {
-      const blob = await apiExportServers(undefined, exportStatus || undefined);
+      const blob = await apiExportServers(
+        exportQuery || undefined,
+        undefined,
+        '0',
+        String(exportLimit),
+        exportSortBy,
+        exportSortOrder,
+      );
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `servers-export-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `servers-export-${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -125,19 +136,62 @@ export default function ServerImportExport() {
       {tab === 'export' && (
         <form onSubmit={handleExport} className="space-y-4 rounded-xl border border-border bg-surface p-6">
           <div>
-            <label htmlFor="status" className="mb-2 block text-sm font-medium text-slate-300">
-              Filter by Status (Optional)
+            <label htmlFor="query" className="mb-2 block text-sm font-medium text-slate-300">
+              Search (Optional)
             </label>
-            <select
-              id="status"
-              value={exportStatus}
-              onChange={(e) => setExportStatus(e.target.value as ServerStatus | '')}
-              className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-            </select>
+            <input
+              id="query"
+              type="text"
+              value={exportQuery}
+              onChange={(e) => setExportQuery(e.target.value)}
+              placeholder="Search by server name..."
+              className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 placeholder:text-slate-500 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="limit" className="mb-2 block text-sm font-medium text-slate-300">
+                Max Rows
+              </label>
+              <input
+                id="limit"
+                type="number"
+                min={1}
+                max={100}
+                value={exportLimit}
+                onChange={(e) => setExportLimit(Number(e.target.value))}
+                className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+              />
+            </div>
+            <div>
+              <label htmlFor="sortBy" className="mb-2 block text-sm font-medium text-slate-300">
+                Sort By
+              </label>
+              <select
+                id="sortBy"
+                value={exportSortBy}
+                onChange={(e) => setExportSortBy(e.target.value as SortBy)}
+                className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+              >
+                <option value="name">Name</option>
+                <option value="created_at">Created At</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="sortOrder" className="mb-2 block text-sm font-medium text-slate-300">
+                Order
+              </label>
+              <select
+                id="sortOrder"
+                value={exportSortOrder}
+                onChange={(e) => setExportSortOrder(e.target.value as SortOrder)}
+                className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
           </div>
 
           {exportError && (

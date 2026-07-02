@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiGetServer, apiUpdateServer } from '../lib/api';
 import { ApiError } from '../lib/api';
-import type { ServerObject, ServerStatus } from '../types/api';
+import type { ServerObject } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ServerEdit() {
@@ -10,7 +10,6 @@ export default function ServerEdit() {
   const navigate = useNavigate();
   const [server, setServer] = useState<ServerObject | null>(null);
   const [name, setName] = useState('');
-  const [status, setStatus] = useState<ServerStatus>('active');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +20,6 @@ export default function ServerEdit() {
       .then((res) => {
         setServer(res.data);
         setName(res.data.name);
-        setStatus(res.data.status);
       })
       .catch((err) => setError(err.message ?? 'Failed to load server'))
       .finally(() => setLoading(false));
@@ -33,7 +31,7 @@ export default function ServerEdit() {
     setError('');
     setSaving(true);
     try {
-      const res = await apiUpdateServer(server.id, { name: name.trim(), status });
+      const res = await apiUpdateServer(server.id, { name: name.trim() });
       navigate(`/servers/${res.data.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -107,28 +105,6 @@ export default function ServerEdit() {
             minLength={1}
             maxLength={255}
           />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">Status</label>
-          <div className="flex gap-3">
-            {(['active', 'paused'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatus(s)}
-                className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                  status === s
-                    ? s === 'active'
-                      ? 'bg-success text-white'
-                      : 'bg-warning text-white'
-                    : 'bg-surface-elevated text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                }`}
-              >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">

@@ -123,7 +123,7 @@ export default function ServerDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-text-primary">{server.name}</h1>
-              <StatusBadge status={server.status} />
+              <StatusBadge status={server.monitor_status} />
             </div>
             <p className="mt-1 text-sm text-slate-500">ID: {server.id}</p>
           </div>

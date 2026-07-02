@@ -94,13 +94,13 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Active</p>
               <p className="mt-1 text-2xl font-bold text-success">
-                {data.filter((s) => s.server.status === 'active').length}
+                {data.filter((s) => s.server.monitor_status === 'online').length}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Paused</p>
               <p className="mt-1 text-2xl font-bold text-warning">
-                {data.filter((s) => s.server.status === 'paused').length}
+                {data.filter((s) => s.server.monitor_status === 'offline').length}
               </p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function Dashboard() {
                         <h3 className="truncate text-lg font-semibold text-text-primary">
                           {item.server.name}
                         </h3>
-                        <StatusBadge status={item.server.status} />
+                        <StatusBadge status={item.server.monitor_status} />
                       </div>
                       {item.server.endpoint && (
                         <p className="mt-1 truncate text-sm text-slate-500">

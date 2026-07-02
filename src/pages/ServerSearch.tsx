@@ -208,7 +208,7 @@ export default function ServerSearch() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <StatusBadge status={server.status} />
+                    <StatusBadge status={server.monitor_status} />
                     <span className="text-xs text-slate-500">
                       {new Date(server.created_at).toLocaleDateString()}
                     </span>

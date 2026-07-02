@@ -1,4 +1,4 @@
-export type ServerStatus = 'active' | 'paused';
+export type ServerStatus = 'online' | 'offline';
 
 export interface PaginationMeta {
   page: number;
@@ -9,7 +9,7 @@ export interface PaginationMeta {
 export interface ServerObject {
   id: number;
   name: string;
-  status: ServerStatus;
+  monitor_status: ServerStatus;
   endpoint: Endpoint | null;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,6 @@ export interface CreateServerRequest {
 
 export interface UpdateServerRequest {
   name?: string;
-  status?: ServerStatus;
 }
 
 export interface ServerResponse {
@@ -42,7 +41,7 @@ export type HttpMethod =
 
 export interface Endpoint {
   url: string;
-  status?: ServerStatus;
+  monitor_status?: ServerStatus;
   interval: number;
   timeout: number;
   method: HttpMethod;
