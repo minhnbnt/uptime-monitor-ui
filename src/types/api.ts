@@ -33,7 +33,7 @@ export interface ServerListResponse {
   meta: PaginationMeta;
 }
 
-export type CheckMethodType = 'push' | 'pull';
+export type CheckMethodType = 'pull';
 
 export type HttpMethod =
   | 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -66,6 +66,8 @@ export interface ServerWithOntime {
 export interface ServerOntimeListResponse {
   data: ServerWithOntime[];
   meta: PaginationMeta;
+  online_count: number;
+  offline_count: number;
 }
 
 export interface RegisterRequest {

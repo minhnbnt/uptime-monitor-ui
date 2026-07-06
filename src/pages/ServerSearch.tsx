@@ -6,7 +6,7 @@ import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-type SortBy = 'name' | 'created_at' | 'status' | 'score';
+type SortBy = 'name' | 'created_at' | 'score';
 type SortOrder = 'asc' | 'desc';
 
 export default function ServerSearch() {
@@ -22,17 +22,13 @@ export default function ServerSearch() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!query.trim()) {
-      setData([]);
-      return;
-    }
+    if (!query.trim()) return;
 
-    setLoading(true);
-    setError('');
     apiSearchServers(query, page, 20, sortBy, sortOrder)
       .then((res) => {
         setData(res.data);
         setMeta(res.meta);
+        setError('');
       })
       .catch((err) => setError(err.message ?? 'Failed to search servers'))
       .finally(() => setLoading(false));
@@ -40,6 +36,8 @@ export default function ServerSearch() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     setPage(1);
     setSearchParams({
       q: query,
@@ -50,6 +48,8 @@ export default function ServerSearch() {
   };
 
   const handlePageChange = (newPage: number) => {
+    setLoading(true);
+    setError('');
     setPage(newPage);
     setSearchParams({
       q: query,
@@ -66,6 +66,8 @@ export default function ServerSearch() {
       setSortBy(field);
       setSortOrder('asc');
     }
+    setLoading(true);
+    setError('');
     setPage(1);
   };
 
@@ -119,7 +121,6 @@ export default function ServerSearch() {
             >
               <option value="name">Name</option>
               <option value="created_at">Created Date</option>
-              <option value="status">Status</option>
               <option value="score">Score</option>
             </select>
           </div>

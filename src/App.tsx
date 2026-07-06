@@ -11,9 +11,8 @@ import ServerEdit from './pages/ServerEdit';
 import CheckMethodSetup from './pages/CheckMethodSetup';
 import ServerSearch from './pages/ServerSearch';
 import ServerImportExport from './pages/ServerImportExport';
-import ServerHistory from './pages/ServerHistory';
+
 import SettingsNotifications from './pages/SettingsNotifications';
-import UserProfile from './pages/UserProfile';
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -51,9 +50,8 @@ export default function App() {
             <Route path="/servers/:id" element={<ServerDetail />} />
             <Route path="/servers/:id/edit" element={<ServerEdit />} />
             <Route path="/servers/:id/check-method" element={<CheckMethodSetup />} />
-            <Route path="/servers/:id/history" element={<ServerHistory />} />
+
             <Route path="/settings/notifications" element={<SettingsNotifications />} />
-            <Route path="/settings/profile" element={<UserProfile />} />
           </Route>
 
           {/* Catch-all */}

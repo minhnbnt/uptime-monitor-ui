@@ -55,25 +55,30 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
           Check Method
         </label>
         <div className="flex gap-3">
-          {(['push', 'pull'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => onMethodChange(m)}
-              className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                method === m
-                  ? 'bg-success text-white'
-                  : 'bg-surface-elevated text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-              }`}
-            >
-              {m === 'push' ? 'Push' : 'Pull'}
-            </button>
-          ))}
+          <button
+            type="button"
+            disabled
+            className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-600 line-through"
+          >
+            Push
+            <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+              In Development
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onMethodChange('pull')}
+            className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+              method === 'pull'
+                ? 'bg-success text-white'
+                : 'bg-surface-elevated text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+            }`}
+          >
+            Pull
+          </button>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          {method === 'push'
-            ? 'Server pushes status data to a callback URL'
-            : 'Monitor pulls data from your endpoint periodically'}
+          Monitor pulls data from your endpoint periodically
         </p>
       </div>
 

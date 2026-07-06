@@ -158,7 +158,7 @@ export default function ServerImportExport() {
                 id="limit"
                 type="number"
                 min={1}
-                max={100}
+                max={10000}
                 value={exportLimit}
                 onChange={(e) => setExportLimit(Number(e.target.value))}
                 className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"

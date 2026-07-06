@@ -18,57 +18,65 @@ export default function ServerHistory() {
   const [server, setServer] = useState<ServerObject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    setError('');
+
     apiGetServer(Number(id))
-      .then((res) => setServer(res.data))
+      .then((res) => {
+        setServer(res.data);
+        setError('');
+      })
       .catch((err) => setError(err.message ?? 'Failed to load server'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Mock data - replace with actual API call
-  const mockEvents: ServerEvent[] = [
-    {
-      id: 1,
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      duration_seconds: 3600,
-      response_time_ms: 145,
-    },
-    {
-      id: 2,
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      status: 'error',
-      duration_seconds: 600,
-      error_message: 'Connection timeout',
-    },
-    {
-      id: 3,
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      duration_seconds: 7200,
-      response_time_ms: 123,
-    },
-    {
-      id: 4,
-      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-      status: 'inactive',
-      duration_seconds: 3600,
-      error_message: 'Server unreachable',
-    },
-    {
-      id: 5,
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      duration_seconds: 86400,
-      response_time_ms: 156,
-    },
-  ];
+  const [mockEvents] = useState<ServerEvent[]>(() => {
+    const now = Date.now();
+    return [
+      {
+        id: 1,
+        timestamp: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        duration_seconds: 3600,
+        response_time_ms: 145,
+      },
+      {
+        id: 2,
+        timestamp: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
+        status: 'error',
+        duration_seconds: 600,
+        error_message: 'Connection timeout',
+      },
+      {
+        id: 3,
+        timestamp: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        duration_seconds: 7200,
+        response_time_ms: 123,
+      },
+      {
+        id: 4,
+        timestamp: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+        status: 'inactive',
+        duration_seconds: 3600,
+        error_message: 'Server unreachable',
+      },
+      {
+        id: 5,
+        timestamp: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+        status: 'active',
+        duration_seconds: 86400,
+        response_time_ms: 156,
+      },
+    ];
+  });
 
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();

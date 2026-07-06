@@ -10,6 +10,7 @@ export default function SettingsNotifications() {
     digest_time: '08:00',
   });
   const [loading, setLoading] = useState(true);
+  const [configReady, setConfigReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [error, setError] = useState('');
@@ -18,13 +19,17 @@ export default function SettingsNotifications() {
   const [reportSuccess, setReportSuccess] = useState('');
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
     apiGetNotificationConfig()
-      .then(setConfig)
+      .then((res) => {
+        setConfig(res);
+        setConfigReady(true);
+        setError('');
+      })
       .catch((err) => {
         if (err.status !== 404) {
           setError(err.message ?? 'Failed to load notification settings');
+        } else {
+          setError('');
         }
       })
       .finally(() => setLoading(false));
@@ -182,10 +187,15 @@ export default function SettingsNotifications() {
           <div className="mt-3 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{reportSuccess}</div>
         )}
 
+        {!configReady && (
+          <p className="mt-3 text-xs text-slate-500">
+            Please save your notification settings before sending a report.
+          </p>
+        )}
         <button
           type="button"
           onClick={handleSendReport}
-          disabled={sendingReport}
+          disabled={sendingReport || !configReady}
           className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {sendingReport ? <LoadingSpinner size="sm" /> : null}

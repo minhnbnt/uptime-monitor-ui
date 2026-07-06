@@ -18,18 +18,26 @@ export default function Dashboard() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [offlineCount, setOfflineCount] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
     apiListServersOntime(page, 20)
       .then((res) => {
         setData(res.data);
         setMeta(res.meta);
+        setOnlineCount(res.online_count);
+        setOfflineCount(res.offline_count);
       })
       .catch((err) => setError(err.message ?? 'Failed to load servers'))
       .finally(() => setLoading(false));
   }, [page]);
+
+  const handlePageChange = (newPage: number) => {
+    setLoading(true);
+    setError('');
+    setPage(newPage);
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -94,13 +102,13 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Active</p>
               <p className="mt-1 text-2xl font-bold text-success">
-                {data.filter((s) => s.server.monitor_status === 'online').length}
+                {onlineCount}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Paused</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Offline</p>
               <p className="mt-1 text-2xl font-bold text-warning">
-                {data.filter((s) => s.server.monitor_status === 'offline').length}
+                {offlineCount}
               </p>
             </div>
           </div>
@@ -150,7 +158,7 @@ export default function Dashboard() {
             page={meta.page}
             perPage={meta.per_page}
             total={meta.total}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
           />
         </>
       )}
