@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiListServersOntime } from '../lib/api';
-import type { ServerWithOntime, PaginationMeta } from '../types/api';
+import { apiListServers, apiListServersOntime, apiCountServers, toUiStatus } from '../lib/api';
+import type { ServerObject, ServerWithOntime, ServerOntimeListResponse, PaginationMeta, ServerCountResponse } from '../types/api';
+
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import Pagination from '../components/Pagination';
@@ -13,31 +14,37 @@ function avg(stats: { stats: number }[]) {
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState<ServerWithOntime[]>([]);
+  const [servers, setServers] = useState<ServerObject[]>([]);
+  const [ontime, setOntime] = useState<Record<number, ServerWithOntime['ontime_stats']>>({});
   const [meta, setMeta] = useState<PaginationMeta>({ page: 1, per_page: 20, total: 0 });
+  const [count, setCount] = useState<ServerCountResponse>({ total: 0, online: 0, offline: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [onlineCount, setOnlineCount] = useState(0);
-  const [offlineCount, setOfflineCount] = useState(0);
 
   useEffect(() => {
-    apiListServersOntime(page, 20)
-      .then((res) => {
-        setData(res.data);
+    setLoading(true);
+    setError('');
+    Promise.all([apiListServers(page, 20), apiCountServers()])
+      .then(([res, counts]) => {
+        setServers(res.data);
         setMeta(res.meta);
-        setOnlineCount(res.online_count);
-        setOfflineCount(res.offline_count);
+        setCount(counts);
       })
       .catch((err) => setError(err.message ?? 'Failed to load servers'))
       .finally(() => setLoading(false));
   }, [page]);
 
-  const handlePageChange = (newPage: number) => {
-    setLoading(true);
-    setError('');
-    setPage(newPage);
-  };
+  useEffect(() => {
+    if (servers.length === 0) return;
+    apiListServersOntime(page, 20)
+      .then((res: ServerOntimeListResponse) => {
+        const map: Record<number, ServerWithOntime['ontime_stats']> = {};
+        for (const o of res.data) map[o.server_id] = o.ontime_stats;
+        setOntime(map);
+      })
+      .catch(() => {});
+  }, [servers, page]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -72,7 +79,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!loading && !error && data.length === 0 && (
+      {!loading && !error && servers.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16">
           <svg className="mb-4 h-12 w-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
@@ -91,49 +98,56 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!loading && !error && data.length > 0 && (
+      {!loading && !error && servers.length > 0 && (
         <>
           {/* Summary cards */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Servers</p>
               <p className="mt-1 text-2xl font-bold text-text-primary">{meta.total}</p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Active</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Online</p>
               <p className="mt-1 text-2xl font-bold text-success">
-                {onlineCount}
+                {count.online}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Offline</p>
-              <p className="mt-1 text-2xl font-bold text-warning">
-                {offlineCount}
+              <p className="mt-1 text-2xl font-bold text-danger">
+                {count.offline}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Unknown</p>
+              <p className="mt-1 text-2xl font-bold text-slate-400">
+                {Math.max(0, meta.total - count.online - count.offline)}
               </p>
             </div>
           </div>
 
           {/* Server cards */}
           <div className="space-y-4">
-            {data.map((item) => {
-              const avgUptime = avg(item.ontime_stats);
+            {servers.map((server) => {
+              const stats = ontime[server.id] ?? [];
+              const avgUptime = avg(stats);
               return (
                 <Link
-                  key={item.server.id}
-                  to={`/servers/${item.server.id}`}
+                  key={server.id}
+                  to={`/servers/${server.id}`}
                   className="block cursor-pointer rounded-xl border border-border bg-surface p-5 transition-all duration-200 hover:border-slate-600 hover:shadow-lg"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="truncate text-lg font-semibold text-text-primary">
-                          {item.server.name}
+                          {server.name}
                         </h3>
-                        <StatusBadge status={item.server.monitor_status} />
+                        <StatusBadge status={toUiStatus(server.monitor_status)} />
                       </div>
-                      {item.server.endpoint && (
+                      {server.endpoint && (
                         <p className="mt-1 truncate text-sm text-slate-500">
-                          {item.server.endpoint.url}
+                          {server.endpoint.url}
                         </p>
                       )}
                     </div>
@@ -147,7 +161,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="mt-4">
-                    <OntimeChart data={item.ontime_stats} height={120} />
+                    <OntimeChart data={stats} height={120} />
                   </div>
                 </Link>
               );
@@ -158,7 +172,7 @@ export default function Dashboard() {
             page={meta.page}
             perPage={meta.per_page}
             total={meta.total}
-            onPageChange={handlePageChange}
+            onPageChange={setPage}
           />
         </>
       )}

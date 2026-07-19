@@ -1,5 +1,3 @@
-export type ServerStatus = 'online' | 'offline';
-
 export interface PaginationMeta {
   page: number;
   per_page: number;
@@ -9,7 +7,7 @@ export interface PaginationMeta {
 export interface ServerObject {
   id: number;
   name: string;
-  monitor_status: ServerStatus;
+  monitor_status: 'ON' | 'OFF' | null;
   endpoint: Endpoint | null;
   created_at: string;
   updated_at: string;
@@ -33,7 +31,7 @@ export interface ServerListResponse {
   meta: PaginationMeta;
 }
 
-export type CheckMethodType = 'pull';
+export type CheckMethodType = 'push' | 'pull';
 
 export type HttpMethod =
   | 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -41,11 +39,11 @@ export type HttpMethod =
 
 export interface Endpoint {
   url: string;
-  monitor_status?: ServerStatus;
   interval: number;
   timeout: number;
   method: HttpMethod;
   expected_code: number;
+  body_check_expr?: string;
 }
 
 export interface SetCheckMethodRequest {
@@ -59,15 +57,19 @@ export interface OntimeStats {
 }
 
 export interface ServerWithOntime {
-  server: ServerObject;
+  server_id: number;
   ontime_stats: OntimeStats[];
 }
 
 export interface ServerOntimeListResponse {
   data: ServerWithOntime[];
   meta: PaginationMeta;
-  online_count: number;
-  offline_count: number;
+}
+
+export interface ServerCountResponse {
+  total: number;
+  online: number;
+  offline: number;
 }
 
 export interface RegisterRequest {
@@ -111,6 +113,7 @@ export interface TestEndpointRequest {
   method: HttpMethod;
   timeout?: number;
   expected_code?: number;
+  body_check_expr?: string;
 }
 
 export interface TestEndpointResponse {

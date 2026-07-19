@@ -1,4 +1,18 @@
-# React + TypeScript + Vite
+# uptime-monitor-ui
+
+Frontend for the uptime monitor. React 19 + TypeScript + Vite.
+
+## Configuration
+
+The API base URL is configurable via the `VITE_API_BASE_URL` environment variable. When unset, it defaults to `http://localhost:8080`.
+
+Create a `.env` (or `.env.local`) file:
+
+```
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

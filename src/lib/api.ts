@@ -12,6 +12,7 @@ import type {
   UserProfile,
   ServerObject,
   ServerWithOntime,
+  ServerCountResponse,
   TestEndpointRequest,
   TestEndpointResponse,
   SearchServersResponse,
@@ -19,7 +20,15 @@ import type {
   NotificationConfig,
 } from '../types/api';
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+
+export type UiStatus = 'online' | 'offline' | 'unknown';
+
+export function toUiStatus(status: ServerObject['monitor_status']): UiStatus {
+  if (status === 'ON') return 'online';
+  if (status === 'OFF') return 'offline';
+  return 'unknown';
+}
 
 export class ApiError extends Error {
   status: number;
@@ -228,9 +237,8 @@ export function apiLogout(data: RefreshTokenRequest): Promise<void> {
   });
 }
 
-export function apiListServers(page = 1, perPage = 20, status?: string): Promise<ServerListResponse> {
+export function apiListServers(page = 1, perPage = 20): Promise<ServerListResponse> {
   const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
-  if (status) params.set('status', status);
   return request<ServerListResponse>(`/api/v1/servers?${params}`);
 }
 
@@ -268,6 +276,10 @@ export function apiListServersOntime(page = 1, perPage = 20): Promise<ServerOnti
   return request<ServerOntimeListResponse>(`/api/v1/servers/ontime?${params}`);
 }
 
+export function apiCountServers(): Promise<ServerCountResponse> {
+  return request<ServerCountResponse>('/api/v1/servers/count');
+}
+
 export function apiTestEndpoint(data: TestEndpointRequest): Promise<TestEndpointResponse> {
   return request<TestEndpointResponse>('/api/v1/test-endpoint', {
     method: 'POST',
@@ -294,7 +306,6 @@ export function apiSearchServers(
 
 export async function apiExportServers(
   query?: string,
-  status?: string,
   from?: string,
   to?: string,
   sortBy = 'name',
@@ -305,7 +316,6 @@ export async function apiExportServers(
     sort_order: sortOrder,
   });
   if (query) params.set('q', query);
-  if (status) params.set('status', status);
   if (from) params.set('from', from);
   if (to) params.set('to', to);
 

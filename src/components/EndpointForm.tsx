@@ -57,16 +57,6 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
         <div className="flex gap-3">
           <button
             type="button"
-            disabled
-            className="flex cursor-not-allowed items-center gap-2 rounded-lg bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-600 line-through"
-          >
-            Push
-            <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-              In Development
-            </span>
-          </button>
-          <button
-            type="button"
             onClick={() => onMethodChange('pull')}
             className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
               method === 'pull'
@@ -76,9 +66,23 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
           >
             Pull
           </button>
+          <div className="relative">
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-lg bg-surface-elevated px-4 py-2 text-sm font-medium text-slate-500 opacity-60"
+            >
+              Push
+            </button>
+            <span className="absolute -top-2 -right-2 rounded-full bg-warning/20 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+              Soon
+            </span>
+          </div>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          Monitor pulls data from your endpoint periodically
+          {method === 'push'
+            ? 'Server pushes status data to a callback URL'
+            : 'Monitor pulls data from your endpoint periodically'}
         </p>
       </div>
 
@@ -159,6 +163,24 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
           onChange={(e) => set('expected_code', Math.min(599, Math.max(100, parseInt(e.target.value) || 200)))}
           className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
         />
+      </div>
+
+      {/* Body check expression */}
+      <div>
+        <label htmlFor="ep-body-expr" className="mb-1.5 block text-sm font-medium text-slate-300">
+          Body Check Expression <span className="text-slate-500">(optional)</span>
+        </label>
+        <input
+          id="ep-body-expr"
+          type="text"
+          value={endpoint.body_check_expr ?? ''}
+          onChange={(e) => set('body_check_expr', e.target.value)}
+          placeholder="e.g. body.status == 'ok' && body.uptime > 0.9"
+          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Optional expr-lang expression evaluated against the response body. Left empty to skip body validation.
+        </p>
       </div>
 
       {/* Test endpoint */}

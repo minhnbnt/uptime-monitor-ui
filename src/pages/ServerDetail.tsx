@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiDeleteServer } from '../lib/api';
+import { apiGetServer, apiDeleteServer, toUiStatus } from '../lib/api';
 import { ApiError } from '../lib/api';
 import type { ServerObject } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
@@ -17,11 +17,12 @@ export default function ServerDetail() {
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
+    setError('');
 
     apiGetServer(Number(id))
       .then((res) => {
         setServer(res.data);
-        setError('');
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -122,7 +123,7 @@ export default function ServerDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-text-primary">{server.name}</h1>
-              <StatusBadge status={server.monitor_status} />
+              <StatusBadge status={toUiStatus(server.monitor_status)} />
             </div>
             <p className="mt-1 text-sm text-slate-500">ID: {server.id}</p>
           </div>

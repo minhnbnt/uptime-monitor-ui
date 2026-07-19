@@ -59,7 +59,7 @@ export default function OntimeChart({ data, height = 200 }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+      <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 10 }}>
         <defs>
           <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#15803D" stopOpacity={0.2} />
@@ -80,7 +80,7 @@ export default function OntimeChart({ data, height = 200 }: Props) {
           interval="preserveStartEnd"
         />
         <YAxis
-          domain={[0, 100]}
+          domain={['dataMin', 100]}
           stroke="#64748b"
           fontSize={11}
           tickLine={false}

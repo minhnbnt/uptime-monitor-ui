@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { apiSearchServers } from '../lib/api';
+import { apiSearchServers, toUiStatus } from '../lib/api';
 import type { ServerObject, PaginationMeta } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-type SortBy = 'name' | 'created_at' | 'score';
+type SortBy = 'name' | 'created_at' | 'status' | 'score';
 type SortOrder = 'asc' | 'desc';
 
 export default function ServerSearch() {
@@ -22,13 +22,17 @@ export default function ServerSearch() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      setData([]);
+      return;
+    }
 
+    setLoading(true);
+    setError('');
     apiSearchServers(query, page, 20, sortBy, sortOrder)
       .then((res) => {
         setData(res.data);
         setMeta(res.meta);
-        setError('');
       })
       .catch((err) => setError(err.message ?? 'Failed to search servers'))
       .finally(() => setLoading(false));
@@ -36,8 +40,6 @@ export default function ServerSearch() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
     setPage(1);
     setSearchParams({
       q: query,
@@ -48,8 +50,6 @@ export default function ServerSearch() {
   };
 
   const handlePageChange = (newPage: number) => {
-    setLoading(true);
-    setError('');
     setPage(newPage);
     setSearchParams({
       q: query,
@@ -66,8 +66,6 @@ export default function ServerSearch() {
       setSortBy(field);
       setSortOrder('asc');
     }
-    setLoading(true);
-    setError('');
     setPage(1);
   };
 
@@ -121,6 +119,7 @@ export default function ServerSearch() {
             >
               <option value="name">Name</option>
               <option value="created_at">Created Date</option>
+              <option value="status">Status</option>
               <option value="score">Score</option>
             </select>
           </div>
@@ -209,7 +208,7 @@ export default function ServerSearch() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <StatusBadge status={server.monitor_status} />
+                    <StatusBadge status={toUiStatus(server.monitor_status)} />
                     <span className="text-xs text-slate-500">
                       {new Date(server.created_at).toLocaleDateString()}
                     </span>
