@@ -6,14 +6,14 @@ import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-type SortBy = 'name' | 'created_at' | 'status' | 'score';
+type SortBy = 'name' | 'created_at' | 'score';
 type SortOrder = 'asc' | 'desc';
 
 export default function ServerSearch() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [sortBy, setSortBy] = useState<SortBy>((searchParams.get('sort_by') as SortBy) || 'name');
-  const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('sort_order') as SortOrder) || 'asc');
+  const [sortBy, setSortBy] = useState<SortBy>((searchParams.get('sort_by') as SortBy) || 'score');
+  const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('sort_order') as SortOrder) || 'desc');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
 
   const [data, setData] = useState<ServerObject[]>([]);
@@ -119,7 +119,6 @@ export default function ServerSearch() {
             >
               <option value="name">Name</option>
               <option value="created_at">Created Date</option>
-              <option value="status">Status</option>
               <option value="score">Score</option>
             </select>
           </div>

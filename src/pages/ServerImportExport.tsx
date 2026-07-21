@@ -5,6 +5,7 @@ import {
   apiGetImportTemplate,
 } from "../lib/api";
 import type { ImportServersResponse } from "../types/api";
+import type { ImportServerRowError } from "../types/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 type Tab = "import" | "export";
@@ -14,6 +15,8 @@ export default function ServerImportExport() {
 
   // Export state
   const [exportQuery, setExportQuery] = useState("");
+  const [exportFrom, setExportFrom] = useState("0");
+  const [exportTo, setExportTo] = useState("100");
   const [exportSortBy, setExportSortBy] = useState("name");
   const [exportSortOrder, setExportSortOrder] = useState("asc");
   const [exportLoading, setExportLoading] = useState(false);
@@ -35,8 +38,8 @@ export default function ServerImportExport() {
     try {
       const blob = await apiExportServers(
         exportQuery || undefined,
-        undefined,
-        undefined,
+        exportFrom,
+        exportTo,
         exportSortBy,
         exportSortOrder,
       );
@@ -168,6 +171,42 @@ export default function ServerImportExport() {
               placeholder="Filter by server name..."
               className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="export-from"
+                className="mb-1.5 block text-sm font-medium text-slate-300"
+              >
+                From
+              </label>
+              <input
+                id="export-from"
+                type="number"
+                min={0}
+                value={exportFrom}
+                onChange={(e) => setExportFrom(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="export-to"
+                className="mb-1.5 block text-sm font-medium text-slate-300"
+              >
+                To
+              </label>
+              <input
+                id="export-to"
+                type="number"
+                min={1}
+                max={10000}
+                value={exportTo}
+                onChange={(e) => setExportTo(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -340,23 +379,23 @@ export default function ServerImportExport() {
                   <p>
                     Imported:{" "}
                     <span className="font-semibold text-success">
-                      {importResult.imported}
+                      {importResult.success_count}
                     </span>
                   </p>
                   <p>
                     Failed:{" "}
                     <span className="font-semibold text-danger">
-                      {importResult.failed}
+                      {importResult.failed_count}
                     </span>
                   </p>
                 </div>
-                {importResult.errors && importResult.errors.length > 0 && (
+                {importResult.failed && importResult.failed.length > 0 && (
                   <div className="mt-2 rounded bg-danger/20 px-3 py-2">
                     <p className="text-xs font-medium text-danger">Errors:</p>
                     <ul className="mt-1 space-y-1">
-                      {importResult.errors.map((err, idx) => (
+                      {importResult.failed.map((err: ImportServerRowError, idx: number) => (
                         <li key={idx} className="text-xs text-danger/90">
-                          • {err}
+                          Row {err.row}: {err.message}
                         </li>
                       ))}
                     </ul>

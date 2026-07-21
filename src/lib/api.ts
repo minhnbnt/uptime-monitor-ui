@@ -291,8 +291,8 @@ export function apiSearchServers(
   query: string,
   page = 1,
   perPage = 20,
-  sortBy = 'name',
-  sortOrder = 'asc',
+  sortBy = 'score',
+  sortOrder = 'desc',
 ): Promise<SearchServersResponse> {
   const params = new URLSearchParams({
     q: query,

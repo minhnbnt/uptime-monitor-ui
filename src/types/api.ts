@@ -124,11 +124,23 @@ export interface TestEndpointResponse {
 
 export type SearchServersResponse = ServerListResponse;
 
+export interface ImportServerSuccess {
+  row: number;
+  name: string;
+  url: string;
+  server_id: number;
+}
+
+export interface ImportServerRowError {
+  row: number;
+  message: string;
+}
+
 export interface ImportServersResponse {
-  success: boolean;
-  imported: number;
-  failed: number;
-  errors?: string[];
+  success_count: number;
+  successes: ImportServerSuccess[];
+  failed_count: number;
+  failed: ImportServerRowError[];
 }
 
 export interface NotificationConfig {
