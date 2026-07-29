@@ -26,6 +26,7 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
         method: endpoint.method,
         timeout: endpoint.timeout,
         expected_code: endpoint.expected_code,
+        body_check_expr: endpoint.body_check_expr || undefined,
       });
       setTestResult({
         success: res.success,
