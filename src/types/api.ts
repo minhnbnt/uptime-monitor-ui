@@ -4,11 +4,18 @@ export interface PaginationMeta {
   total: number;
 }
 
+export type ServerKind = 'Pod' | 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'ReplicaSet';
+
 export interface ServerObject {
   id: number;
   name: string;
+  namespace: string;
+  kind: ServerKind;
+  object_id: string;
+  container_name?: string;
+  interval?: number;
+  timeout?: number;
   monitor_status: 'ON' | 'OFF' | null;
-  endpoint: Endpoint | null;
   created_at: string;
   updated_at: string;
   ontime_stats?: OntimeStats[];
@@ -16,10 +23,22 @@ export interface ServerObject {
 
 export interface CreateServerRequest {
   name: string;
+  namespace: string;
+  kind: ServerKind;
+  object_id: string;
+  container_name?: string;
+  interval?: number;
+  timeout?: number;
 }
 
 export interface UpdateServerRequest {
   name?: string;
+  namespace?: string;
+  kind?: ServerKind;
+  object_id?: string;
+  container_name?: string;
+  interval?: number;
+  timeout?: number;
 }
 
 export interface ServerResponse {
@@ -31,34 +50,19 @@ export interface ServerListResponse {
   meta: PaginationMeta;
 }
 
-export type CheckMethodType = 'push' | 'pull';
-
-export type HttpMethod =
-  | 'GET' | 'POST' | 'PUT' | 'DELETE'
-  | 'PATCH' | 'HEAD' | 'OPTIONS' | 'CONNECT' | 'TRACE';
-
-export interface Endpoint {
-  url: string;
-  interval: number;
-  timeout: number;
-  method: HttpMethod;
-  expected_code: number;
-  body_check_expr?: string;
-}
-
-export interface SetCheckMethodRequest {
-  method: CheckMethodType;
-  endpoint: Endpoint;
-}
-
 export interface OntimeStats {
   date: string;
   stats: number;
+  to?: string;
 }
 
 export interface ServerWithOntime {
   server_id: number;
   ontime_stats: OntimeStats[];
+}
+
+export interface ServerOntimeResponse {
+  data: ServerWithOntime;
 }
 
 export interface ServerOntimeListResponse {
@@ -109,16 +113,15 @@ export interface ApiErrorBody {
 }
 
 export interface TestEndpointRequest {
-  url: string;
-  method: HttpMethod;
+  namespace: string;
+  object_id: string;
+  kind: ServerKind;
+  container_name?: string;
   timeout?: number;
-  expected_code?: number;
-  body_check_expr?: string;
 }
 
 export interface TestEndpointResponse {
-  success: boolean;
-  status_code: number;
+  running: boolean;
   error?: string;
 }
 
@@ -127,7 +130,6 @@ export type SearchServersResponse = ServerListResponse;
 export interface ImportServerSuccess {
   row: number;
   name: string;
-  url: string;
   server_id: number;
 }
 
@@ -141,6 +143,28 @@ export interface ImportServersResponse {
   successes: ImportServerSuccess[];
   failed_count: number;
   failed: ImportServerRowError[];
+}
+
+export interface CalculateUptimeRequest {
+  from: string;
+  to: string;
+  resolution?: string;
+}
+
+export interface IntervalResult {
+  from: string;
+  to: string;
+  uptime: number;
+}
+
+export interface UptimeResponse {
+  server_id: number;
+  uptime: number;
+  from: string;
+  to: string;
+  total_seconds: number;
+  online_seconds: number;
+  intervals: IntervalResult[];
 }
 
 export interface NotificationConfig {

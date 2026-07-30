@@ -1,14 +1,11 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { LoginRequest, RegisterRequest, UserProfile } from '../types/api';
+import { setTokens, clearTokens, setStoredUser, getRefreshToken } from './tokens';
 import {
   apiLogin,
   apiRegister,
   apiLogout,
   initAuth,
-  setTokens,
-  clearTokens,
-  setStoredUser,
-  getRefreshToken,
   attemptRefresh,
 } from './api';
 

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { apiListServers, apiListServersOntime, apiCountServers, toUiStatus } from '../lib/api';
-import type { ServerObject, ServerWithOntime, ServerOntimeListResponse, PaginationMeta, ServerCountResponse } from '../types/api';
+import { useServers, useServerCount, useServersOntimeList } from '../lib/queries';
+import { toUiStatus } from '../lib/api';
+import type { ServerObject, ServerWithOntime } from '../types/api';
 
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
@@ -14,37 +15,19 @@ function avg(stats: { stats: number }[]) {
 }
 
 export default function Dashboard() {
-  const [servers, setServers] = useState<ServerObject[]>([]);
-  const [ontime, setOntime] = useState<Record<number, ServerWithOntime['ontime_stats']>>({});
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, per_page: 20, total: 0 });
-  const [count, setCount] = useState<ServerCountResponse>({ total: 0, online: 0, offline: 0 });
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: serversRes, isLoading, error } = useServers(page);
+  const { data: count } = useServerCount();
+  const { data: ontimeRes } = useServersOntimeList(page);
 
-  useEffect(() => {
-    setLoading(true);
-    setError('');
-    Promise.all([apiListServers(page, 20), apiCountServers()])
-      .then(([res, counts]) => {
-        setServers(res.data);
-        setMeta(res.meta);
-        setCount(counts);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load servers'))
-      .finally(() => setLoading(false));
-  }, [page]);
+  const servers = serversRes?.data ?? [];
+  const meta = serversRes?.meta ?? { page: 1, per_page: 20, total: 0 };
 
-  useEffect(() => {
-    if (servers.length === 0) return;
-    apiListServersOntime(page, 20)
-      .then((res: ServerOntimeListResponse) => {
-        const map: Record<number, ServerWithOntime['ontime_stats']> = {};
-        for (const o of res.data) map[o.server_id] = o.ontime_stats;
-        setOntime(map);
-      })
-      .catch(() => {});
-  }, [servers, page]);
+  const ontime = useMemo(() => {
+    const map: Record<number, ServerWithOntime['ontime_stats']> = {};
+    if (ontimeRes) for (const o of ontimeRes.data) map[o.server_id] = o.ontime_stats;
+    return map;
+  }, [ontimeRes]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -67,7 +50,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {loading && (
+      {isLoading && (
         <div className="flex justify-center py-16">
           <LoadingSpinner size="lg" />
         </div>
@@ -75,11 +58,11 @@ export default function Dashboard() {
 
       {error && (
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
+          {error instanceof Error ? error.message : 'Failed to load servers'}
         </div>
       )}
 
-      {!loading && !error && servers.length === 0 && (
+      {!isLoading && !error && servers.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16">
           <svg className="mb-4 h-12 w-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
@@ -98,7 +81,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!loading && !error && servers.length > 0 && (
+      {!isLoading && !error && servers.length > 0 && (
         <>
           {/* Summary cards */}
           <div className="grid gap-4 sm:grid-cols-4">
@@ -109,26 +92,26 @@ export default function Dashboard() {
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Online</p>
               <p className="mt-1 text-2xl font-bold text-success">
-                {count.online}
+                {count?.online ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Offline</p>
               <p className="mt-1 text-2xl font-bold text-danger">
-                {count.offline}
+                {count?.offline ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Unknown</p>
               <p className="mt-1 text-2xl font-bold text-slate-400">
-                {Math.max(0, meta.total - count.online - count.offline)}
+                {Math.max(0, meta.total - (count?.online ?? 0) - (count?.offline ?? 0))}
               </p>
             </div>
           </div>
 
           {/* Server cards */}
           <div className="space-y-4">
-            {servers.map((server) => {
+            {servers.map((server: ServerObject) => {
               const stats = ontime[server.id] ?? [];
               const avgUptime = avg(stats);
               return (
@@ -145,11 +128,9 @@ export default function Dashboard() {
                         </h3>
                         <StatusBadge status={toUiStatus(server.monitor_status)} />
                       </div>
-                      {server.endpoint && (
-                        <p className="mt-1 truncate text-sm text-slate-500">
-                          {server.endpoint.url}
-                        </p>
-                      )}
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {server.namespace}/{server.kind}/{server.object_id}
+                      </p>
                     </div>
                     {avgUptime !== null && (
                       <div className="text-right">

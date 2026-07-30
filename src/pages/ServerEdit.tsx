@@ -1,50 +1,75 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiUpdateServer } from '../lib/api';
+import { useServer, useUpdateServer } from '../lib/queries';
 import { ApiError } from '../lib/api';
-import type { ServerObject } from '../types/api';
+import type { ServerKind } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
+import K8sConfigForm from '../components/K8sConfigForm';
 
 export default function ServerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [server, setServer] = useState<ServerObject | null>(null);
+  const serverId = id ? Number(id) : undefined;
+
+  const { data: serverRes, isLoading, error: loadError } = useServer(serverId);
+  const updateMutation = useUpdateServer(serverId);
+
+  const server = serverRes?.data ?? null;
+
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [namespace, setNamespace] = useState('');
+  const [kind, setKind] = useState<ServerKind>('Deployment');
+  const [objectId, setObjectId] = useState('');
+  const [containerName, setContainerName] = useState('');
+  const [interval, setInterval] = useState(30);
+  const [timeout, setTimeout] = useState(10);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!id) return;
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-        setName(res.data.name);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load server'))
-      .finally(() => setLoading(false));
-  }, [id]);
+    if (!server) return;
+    setName(server.name);
+    setNamespace(server.namespace);
+    setKind(server.kind);
+    setObjectId(server.object_id);
+    setContainerName(server.container_name ?? '');
+    setInterval(server.interval ?? 30);
+    setTimeout(server.timeout ?? 10);
+  }, [server]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !server) return;
+    if (!server) return;
     setError('');
     setSaving(true);
     try {
-      const res = await apiUpdateServer(server.id, { name: name.trim() });
+      const res = await updateMutation.mutateAsync({
+        name: name.trim(),
+        namespace: namespace.trim(),
+        kind,
+        object_id: objectId.trim(),
+        container_name: containerName.trim() || undefined,
+        interval,
+        timeout,
+      });
       navigate(`/servers/${res.data.id}`);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to update server');
-      }
+      setError(err instanceof ApiError ? err.message : 'Failed to update server');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  const handleK8sChange = (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number }) => {
+    if (fields.namespace !== undefined) setNamespace(fields.namespace);
+    if (fields.kind !== undefined) setKind(fields.kind);
+    if (fields.object_id !== undefined) setObjectId(fields.object_id);
+    if (fields.container_name !== undefined) setContainerName(fields.container_name);
+    if (fields.interval !== undefined) setInterval(fields.interval);
+    if (fields.timeout !== undefined) setTimeout(fields.timeout);
+  };
+
+  if (isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -56,7 +81,7 @@ export default function ServerEdit() {
     return (
       <div className="mx-auto max-w-lg text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {(loadError instanceof Error ? loadError.message : null) || 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -84,13 +109,14 @@ export default function ServerEdit() {
         <p className="mt-1 text-sm text-slate-400">{server.name}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border bg-surface p-6">
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-border bg-surface p-6">
         {error && (
           <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
 
+        {/* Server Name */}
         <div>
           <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-slate-300">
             Server Name
@@ -107,7 +133,18 @@ export default function ServerEdit() {
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* K8s Config */}
+        <K8sConfigForm
+          namespace={namespace}
+          kind={kind}
+          objectId={objectId}
+          containerName={containerName}
+          interval={interval}
+          timeout={timeout}
+          onChange={handleK8sChange}
+        />
+
+        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
           <Link
             to={`/servers/${server.id}`}
             className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:text-slate-200"
@@ -116,7 +153,7 @@ export default function ServerEdit() {
           </Link>
           <button
             type="submit"
-            disabled={saving || !name.trim()}
+            disabled={saving || !name.trim() || !namespace.trim() || !objectId.trim()}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? <LoadingSpinner size="sm" /> : null}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { apiSearchServers, toUiStatus } from '../lib/api';
-import type { ServerObject, PaginationMeta } from '../types/api';
+import { useSearchServers } from '../lib/queries';
+import { toUiStatus } from '../lib/api';
+import type { ServerObject } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -16,47 +17,17 @@ export default function ServerSearch() {
   const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('sort_order') as SortOrder) || 'desc');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
 
-  const [data, setData] = useState<ServerObject[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, per_page: 20, total: 0 });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setData([]);
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    apiSearchServers(query, page, 20, sortBy, sortOrder)
-      .then((res) => {
-        setData(res.data);
-        setMeta(res.meta);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to search servers'))
-      .finally(() => setLoading(false));
-  }, [query, page, sortBy, sortOrder]);
+  const { data, isLoading, error } = useSearchServers(query, page, sortBy, sortOrder);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    setSearchParams({
-      q: query,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-      page: '1',
-    });
+    setSearchParams({ q: query, sort_by: sortBy, sort_order: sortOrder, page: '1' });
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    setSearchParams({
-      q: query,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-      page: String(newPage),
-    });
+    setSearchParams({ q: query, sort_by: sortBy, sort_order: sortOrder, page: String(newPage) });
   };
 
   const handleSortChange = (field: SortBy) => {
@@ -68,6 +39,9 @@ export default function ServerSearch() {
     }
     setPage(1);
   };
+
+  const items = data?.data ?? [];
+  const meta = data?.meta ?? { page: 1, per_page: 20, total: 0 };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -96,10 +70,10 @@ export default function ServerSearch() {
             />
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? <LoadingSpinner size="sm" /> : null}
+              {isLoading ? <LoadingSpinner size="sm" /> : null}
               Search
             </button>
           </div>
@@ -148,7 +122,7 @@ export default function ServerSearch() {
 
       {error && (
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
+          {error instanceof Error ? error.message : 'Failed to search servers'}
         </div>
       )}
 
@@ -162,13 +136,13 @@ export default function ServerSearch() {
         </div>
       )}
 
-      {query.trim() && loading && (
+      {query.trim() && isLoading && (
         <div className="flex justify-center py-16">
           <LoadingSpinner size="lg" />
         </div>
       )}
 
-      {query.trim() && !loading && !error && data.length === 0 && (
+      {query.trim() && !isLoading && !error && items.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16">
           <svg className="mb-4 h-12 w-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10a4 4 0 118 0 4 4 0 01-8 0zm0 0c0-1.657.895-3.095 2.236-3.864" />
@@ -178,7 +152,7 @@ export default function ServerSearch() {
         </div>
       )}
 
-      {query.trim() && !loading && !error && data.length > 0 && (
+      {query.trim() && !isLoading && !error && items.length > 0 && (
         <>
           {/* Results info */}
           <div className="flex items-center justify-between">
@@ -189,7 +163,7 @@ export default function ServerSearch() {
 
           {/* Results list */}
           <div className="space-y-3">
-            {data.map((server) => (
+            {items.map((server: ServerObject) => (
               <Link
                 key={server.id}
                 to={`/servers/${server.id}`}
@@ -200,11 +174,9 @@ export default function ServerSearch() {
                     <h3 className="truncate text-base font-semibold text-text-primary">
                       {server.name}
                     </h3>
-                    {server.endpoint && (
-                      <p className="mt-1 truncate text-xs text-slate-500">
-                        {server.endpoint.url}
-                      </p>
-                    )}
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {server.namespace}/{server.kind}/{server.object_id}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={toUiStatus(server.monitor_status)} />

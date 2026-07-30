@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiDeleteServer, toUiStatus } from '../lib/api';
-import { ApiError } from '../lib/api';
-import type { ServerObject } from '../types/api';
+import { useServer, useServerOntime, useDeleteServer } from '../lib/queries';
+import { ApiError, toUiStatus } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -10,46 +8,28 @@ import LoadingSpinner from '../components/LoadingSpinner';
 export default function ServerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [server, setServer] = useState<ServerObject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(false);
+  const serverId = id ? Number(id) : undefined;
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
+  const { data: serverRes, isLoading, error } = useServer(serverId);
+  const { data: ontimeRes } = useServerOntime(serverId);
+  const deleteMutation = useDeleteServer();
 
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 404) {
-          setError('Server not found');
-        } else {
-          setError(err.message ?? 'Failed to load server');
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
+  const server = serverRes?.data ?? null;
+  const queryError = error instanceof ApiError && error.status === 404
+    ? 'Server not found'
+    : error instanceof Error ? error.message : '';
 
   const handleDelete = async () => {
     if (!server || !window.confirm(`Delete server "${server.name}"? This action cannot be undone.`)) return;
-    setDeleting(true);
     try {
-      await apiDeleteServer(server.id);
+      await deleteMutation.mutateAsync(server.id);
       navigate('/');
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
-    } finally {
-      setDeleting(false);
+      // error handled by mutation state
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -57,11 +37,11 @@ export default function ServerDetail() {
     );
   }
 
-  if (error || !server) {
+  if (queryError || !server) {
     return (
       <div className="mx-auto max-w-3xl text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {queryError || 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -86,16 +66,6 @@ export default function ServerDetail() {
 
         <div className="flex items-center gap-2">
           <Link
-            to={`/servers/${server.id}/check-method`}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3.5 py-2 text-sm font-medium text-slate-300 transition-all duration-200 hover:bg-slate-700"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Check Method
-          </Link>
-          <Link
             to={`/servers/${server.id}/edit`}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3.5 py-2 text-sm font-medium text-slate-300 transition-all duration-200 hover:bg-slate-700"
           >
@@ -106,13 +76,13 @@ export default function ServerDetail() {
           </Link>
           <button
             onClick={handleDelete}
-            disabled={deleting}
+            disabled={deleteMutation.isPending}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-danger/10 px-3.5 py-2 text-sm font-medium text-danger transition-all duration-200 hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            {deleting ? 'Deleting...' : 'Delete'}
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
@@ -145,39 +115,58 @@ export default function ServerDetail() {
         </div>
       </div>
 
-      {/* Endpoint info */}
-      {server.endpoint && (
-        <div className="rounded-xl border border-border bg-surface p-6">
-          <h2 className="mb-4 text-lg font-semibold text-text-primary">Endpoint</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
+      {/* K8s identity */}
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <h2 className="mb-4 text-lg font-semibold text-text-primary">Kubernetes Resource</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Namespace</p>
+            <p className="mt-1 text-sm text-text-primary font-mono">{server.namespace}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Kind</p>
+            <p className="mt-1 text-sm text-text-primary">{server.kind}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Object Name</p>
+            <p className="mt-1 truncate text-sm text-text-primary font-mono">{server.object_id}</p>
+          </div>
+          {server.container_name && (
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">URL</p>
-              <p className="mt-1 truncate text-sm text-text-primary font-mono">{server.endpoint.url}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Container</p>
+              <p className="mt-1 text-sm text-text-primary font-mono">{server.container_name}</p>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Method</p>
-              <p className="mt-1 text-sm text-text-primary">{server.endpoint.method}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Expected Code</p>
-              <p className="mt-1 text-sm text-text-primary">{server.endpoint.expected_code}</p>
-            </div>
+          )}
+          {server.interval != null && (
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Interval</p>
-              <p className="mt-1 text-sm text-text-primary">{server.endpoint.interval}s</p>
+              <p className="mt-1 text-sm text-text-primary">{server.interval}s</p>
             </div>
+          )}
+          {server.timeout != null && (
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Timeout</p>
-              <p className="mt-1 text-sm text-text-primary">{server.endpoint.timeout}s</p>
+              <p className="mt-1 text-sm text-text-primary">{server.timeout}s</p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Ontime chart */}
       <div className="rounded-xl border border-border bg-surface p-6">
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Uptime (Last 30 Days)</h2>
-        <OntimeChart data={server.ontime_stats ?? []} height={250} />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary">Uptime (Last 30 Days)</h2>
+          <Link
+            to={`/servers/${server.id}/uptime-range`}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs font-medium text-slate-300 transition-all duration-200 hover:bg-slate-700"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Custom Range
+          </Link>
+        </div>
+        <OntimeChart data={ontimeRes?.data?.ontime_stats ?? []} height={250} />
       </div>
     </div>
   );

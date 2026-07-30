@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetServer } from '../lib/api';
-import type { ServerObject } from '../types/api';
+import { useServer } from '../lib/queries';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface ServerEvent {
@@ -15,9 +14,10 @@ interface ServerEvent {
 
 export default function ServerHistory() {
   const { id } = useParams<{ id: string }>();
-  const [server, setServer] = useState<ServerObject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const serverId = id ? Number(id) : undefined;
+  const { data: serverRes, isLoading, error } = useServer(serverId);
+  const server = serverRes?.data ?? null;
+
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -25,62 +25,18 @@ export default function ServerHistory() {
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    if (!id) return;
-
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-        setError('');
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load server'))
-      .finally(() => setLoading(false));
-  }, [id]);
-
   const [mockEvents] = useState<ServerEvent[]>(() => {
     const now = Date.now();
     return [
-      {
-        id: 1,
-        timestamp: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
-        status: 'active',
-        duration_seconds: 3600,
-        response_time_ms: 145,
-      },
-      {
-        id: 2,
-        timestamp: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
-        status: 'error',
-        duration_seconds: 600,
-        error_message: 'Connection timeout',
-      },
-      {
-        id: 3,
-        timestamp: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
-        status: 'active',
-        duration_seconds: 7200,
-        response_time_ms: 123,
-      },
-      {
-        id: 4,
-        timestamp: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
-        status: 'inactive',
-        duration_seconds: 3600,
-        error_message: 'Server unreachable',
-      },
-      {
-        id: 5,
-        timestamp: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
-        status: 'active',
-        duration_seconds: 86400,
-        response_time_ms: 156,
-      },
+      { id: 1, timestamp: new Date(now - 2 * 60 * 60 * 1000).toISOString(), status: 'active' as const, duration_seconds: 3600, response_time_ms: 145 },
+      { id: 2, timestamp: new Date(now - 4 * 60 * 60 * 1000).toISOString(), status: 'error' as const, duration_seconds: 600, error_message: 'Connection timeout' },
+      { id: 3, timestamp: new Date(now - 6 * 60 * 60 * 1000).toISOString(), status: 'active' as const, duration_seconds: 7200, response_time_ms: 123 },
+      { id: 4, timestamp: new Date(now - 12 * 60 * 60 * 1000).toISOString(), status: 'inactive' as const, duration_seconds: 3600, error_message: 'Server unreachable' },
+      { id: 5, timestamp: new Date(now - 24 * 60 * 60 * 1000).toISOString(), status: 'active' as const, duration_seconds: 86400, response_time_ms: 156 },
     ];
   });
 
-  const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
+  const formatDate = (timestamp: string) => new Date(timestamp).toLocaleString();
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;
@@ -90,31 +46,23 @@ export default function ServerHistory() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'text-success';
-      case 'inactive':
-        return 'text-danger';
-      case 'error':
-        return 'text-warning';
-      default:
-        return 'text-slate-400';
+      case 'active': return 'text-success';
+      case 'inactive': return 'text-danger';
+      case 'error': return 'text-warning';
+      default: return 'text-slate-400';
     }
   };
 
   const getStatusBgColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'bg-success/10';
-      case 'inactive':
-        return 'bg-danger/10';
-      case 'error':
-        return 'bg-warning/10';
-      default:
-        return 'bg-slate-800';
+      case 'active': return 'bg-success/10';
+      case 'inactive': return 'bg-danger/10';
+      case 'error': return 'bg-warning/10';
+      default: return 'bg-slate-800';
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -126,7 +74,7 @@ export default function ServerHistory() {
     return (
       <div className="mx-auto max-w-lg text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {(error instanceof Error ? error.message : null) || 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -195,21 +143,15 @@ export default function ServerHistory() {
         <div className="space-y-4">
           {mockEvents.map((event, idx) => (
             <div key={event.id} className="relative">
-              {/* Timeline line */}
               {idx !== mockEvents.length - 1 && (
                 <div className="absolute left-6 top-16 h-12 w-0.5 bg-gradient-to-b from-slate-700 to-slate-800" />
               )}
 
-              {/* Event card */}
               <div className="flex gap-4">
-                {/* Timeline dot */}
                 <div className="relative flex w-12 flex-col items-center pt-2">
-                  <div
-                    className={`h-4 w-4 rounded-full border-2 border-border ${getStatusBgColor(event.status)}`}
-                  />
+                  <div className={`h-4 w-4 rounded-full border-2 border-border ${getStatusBgColor(event.status)}`} />
                 </div>
 
-                {/* Event content */}
                 <div className="flex-1 rounded-lg border border-border bg-surface p-4 pb-4">
                   <div className="flex items-start justify-between">
                     <div>

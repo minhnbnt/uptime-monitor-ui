@@ -1,18 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import ServerDetail from './pages/ServerDetail';
-import ServerCreate from './pages/ServerCreate';
-import ServerEdit from './pages/ServerEdit';
-import CheckMethodSetup from './pages/CheckMethodSetup';
-import ServerSearch from './pages/ServerSearch';
-import ServerImportExport from './pages/ServerImportExport';
+import LoadingSpinner from './components/LoadingSpinner';
 
-import SettingsNotifications from './pages/SettingsNotifications';
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ServerDetail = lazy(() => import('./pages/ServerDetail'));
+const ServerCreate = lazy(() => import('./pages/ServerCreate'));
+const ServerEdit = lazy(() => import('./pages/ServerEdit'));
+const ServerSearch = lazy(() => import('./pages/ServerSearch'));
+const ServerImportExport = lazy(() => import('./pages/ServerImportExport'));
+const ServerUptimeRange = lazy(() => import('./pages/ServerUptimeRange'));
+const SettingsNotifications = lazy(() => import('./pages/SettingsNotifications'));
+
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>}>{children}</Suspense>;
+}
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -23,7 +29,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/" replace />;
   }
 
-  return <>{children}</>;
+  return <SuspenseWrapper>{children}</SuspenseWrapper>;
 }
 
 export default function App() {
@@ -43,15 +49,14 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/servers/new" element={<ServerCreate />} />
-            <Route path="/servers/search" element={<ServerSearch />} />
-            <Route path="/servers/import-export" element={<ServerImportExport />} />
-            <Route path="/servers/:id" element={<ServerDetail />} />
-            <Route path="/servers/:id/edit" element={<ServerEdit />} />
-            <Route path="/servers/:id/check-method" element={<CheckMethodSetup />} />
-
-            <Route path="/settings/notifications" element={<SettingsNotifications />} />
+            <Route path="/" element={<SuspenseWrapper><Dashboard /></SuspenseWrapper>} />
+            <Route path="/servers/new" element={<SuspenseWrapper><ServerCreate /></SuspenseWrapper>} />
+            <Route path="/servers/search" element={<SuspenseWrapper><ServerSearch /></SuspenseWrapper>} />
+            <Route path="/servers/import-export" element={<SuspenseWrapper><ServerImportExport /></SuspenseWrapper>} />
+            <Route path="/servers/:id" element={<SuspenseWrapper><ServerDetail /></SuspenseWrapper>} />
+            <Route path="/servers/:id/edit" element={<SuspenseWrapper><ServerEdit /></SuspenseWrapper>} />
+            <Route path="/servers/:id/uptime-range" element={<SuspenseWrapper><ServerUptimeRange /></SuspenseWrapper>} />
+            <Route path="/settings/notifications" element={<SuspenseWrapper><SettingsNotifications /></SuspenseWrapper>} />
           </Route>
 
           {/* Catch-all */}
