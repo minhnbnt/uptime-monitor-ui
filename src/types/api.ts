@@ -51,6 +51,22 @@ export interface CreateServerRequest {
   http_config?: HttpConfig;
 }
 
+export interface ContainerSpec {
+  name: string;
+  image: string;
+}
+
+export interface CreateK8sObjectRequest {
+  name: string;
+  namespace: string;
+  object_id: string;
+  containers: ContainerSpec[];
+  container_name?: string;
+  interval?: number;
+  timeout?: number;
+  http_config?: HttpConfig;
+}
+
 export interface UpdateServerRequest {
   name?: string;
   namespace?: string;

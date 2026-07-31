@@ -24,7 +24,7 @@ export default function ServerDetail() {
     try {
       await deleteMutation.mutateAsync(server.id);
       navigate('/');
-    } catch (err) {
+    } catch {
       // error handled by mutation state
     }
   };

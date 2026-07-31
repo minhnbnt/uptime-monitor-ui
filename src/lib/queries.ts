@@ -8,6 +8,7 @@ import {
   apiSearchServers,
   apiGetNotificationConfig,
   apiCreateServer,
+  apiCreateK8sObject,
   apiUpdateServer,
   apiDeleteServer,
   apiUpdateNotificationConfig,
@@ -18,6 +19,7 @@ import {
 } from './api';
 import type {
   CreateServerRequest,
+  CreateK8sObjectRequest,
   UpdateServerRequest,
   TestEndpointRequest,
   CalculateUptimeRequest,
@@ -93,6 +95,14 @@ export function useCreateServer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateServerRequest) => apiCreateServer(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['servers'] }),
+  });
+}
+
+export function useCreateK8sObject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateK8sObjectRequest) => apiCreateK8sObject(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['servers'] }),
   });
 }

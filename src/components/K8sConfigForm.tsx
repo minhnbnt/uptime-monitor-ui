@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { HttpConfig, ServerKind, TestEndpointRequest } from '../types/api';
+import type { ContainerSpec, HttpConfig, ServerKind, TestEndpointRequest } from '../types/api';
 import { cleanHttpConfig } from '../types/api';
 import { useTestEndpoint } from '../lib/queries';
 
@@ -12,18 +12,37 @@ interface Props {
   kind: ServerKind;
   objectId: string;
   containerName: string;
+  containers?: ContainerSpec[];
   interval: number;
   timeout: number;
   httpConfig: HttpConfig | null;
+  showKind?: boolean;
   onChange: (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number; http_config?: HttpConfig | null }) => void;
+  onContainersChange?: (containers: ContainerSpec[]) => void;
 }
 
-export default function K8sConfigForm({ namespace, kind, objectId, containerName, interval, timeout, httpConfig, onChange }: Props) {
+export default function K8sConfigForm({ namespace, kind, objectId, containerName, containers, interval, timeout, httpConfig, showKind = true, onChange, onContainersChange }: Props) {
   const testMutation = useTestEndpoint();
   const [testResult, setTestResult] = useState<{ running: boolean; error?: string } | null>(null);
+  const showContainersEditor = !!onContainersChange && kind === 'Pod';
 
   const setHttpConfig = (patch: Partial<HttpConfig>) => {
     onChange({ http_config: { ...(httpConfig ?? { port: 80, method: 'GET' }), ...patch } });
+  };
+
+  const updateContainer = (index: number, patch: Partial<ContainerSpec>) => {
+    if (!containers || !onContainersChange) return;
+    onContainersChange(containers.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  };
+
+  const addContainer = () => {
+    if (!containers || !onContainersChange) return;
+    onContainersChange([...containers, { name: `container-${containers.length + 1}`, image: '' }]);
+  };
+
+  const removeContainer = (index: number) => {
+    if (!containers || !onContainersChange) return;
+    onContainersChange(containers.filter((_, i) => i !== index));
   };
 
   const handleTest = async () => {
@@ -59,21 +78,23 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
       </div>
 
       {/* Kind */}
-      <div>
-        <label htmlFor="k8s-kind" className="mb-1.5 block text-sm font-medium text-slate-300">
-          Kind
-        </label>
-        <select
-          id="k8s-kind"
-          value={kind}
-          onChange={(e) => onChange({ kind: e.target.value as ServerKind })}
-          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
-        >
-          {KINDS.filter((k) => !httpConfig || HTTP_KINDS.includes(k)).map((k) => (
-            <option key={k} value={k}>{k}</option>
-          ))}
-        </select>
-      </div>
+      {showKind && (
+        <div>
+          <label htmlFor="k8s-kind" className="mb-1.5 block text-sm font-medium text-slate-300">
+            Kind
+          </label>
+          <select
+            id="k8s-kind"
+            value={kind}
+            onChange={(e) => onChange({ kind: e.target.value as ServerKind })}
+            className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+          >
+            {KINDS.filter((k) => !httpConfig || HTTP_KINDS.includes(k)).map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Object ID */}
       <div>
@@ -93,6 +114,52 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
           The name of the k8s resource (e.g. pod name, deployment name)
         </p>
       </div>
+
+      {/* Containers editor (Pod create only) */}
+      {showContainersEditor && (
+        <div className="rounded-lg border border-border bg-surface-elevated/50 p-4">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-slate-300">Containers</label>
+            <button
+              type="button"
+              onClick={addContainer}
+              className="cursor-pointer rounded-lg border border-border bg-surface-elevated px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors duration-200 hover:bg-slate-700 hover:text-slate-100"
+            >
+              + Add
+            </button>
+          </div>
+          <div className="mt-3 space-y-3">
+            {containers?.map((c, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <input
+                  type="text"
+                  value={c.name}
+                  onChange={(e) => updateContainer(i, { name: e.target.value })}
+                  placeholder="container name"
+                  className="w-1/3 rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+                  required
+                />
+                <input
+                  type="text"
+                  value={c.image}
+                  onChange={(e) => updateContainer(i, { image: e.target.value })}
+                  placeholder="image (e.g. nginx:latest)"
+                  className="flex-1 rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => removeContainer(i)}
+                  disabled={(containers?.length ?? 0) <= 1}
+                  className="cursor-pointer rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm text-slate-400 transition-colors duration-200 hover:bg-danger/20 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* HTTP Check */}
       <div className="rounded-lg border border-border bg-surface-elevated/50 p-4">
@@ -194,16 +261,30 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
       {!httpConfig && (
       <div>
         <label htmlFor="k8s-container" className="mb-1.5 block text-sm font-medium text-slate-300">
-          Container Name <span className="text-slate-500">(optional)</span>
+          Container to Monitor <span className="text-slate-500">(optional)</span>
         </label>
-        <input
-          id="k8s-container"
-          type="text"
-          value={containerName}
-          onChange={(e) => onChange({ container_name: e.target.value })}
-          placeholder="Leave empty to check all containers"
-          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
-        />
+        {showContainersEditor && containers?.length ? (
+          <select
+            id="k8s-container"
+            value={containerName}
+            onChange={(e) => onChange({ container_name: e.target.value })}
+            className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+          >
+            <option value="">All containers</option>
+            {containers.map((c, i) => (
+              <option key={i} value={c.name}>{c.name || `container-${i + 1}`}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            id="k8s-container"
+            type="text"
+            value={containerName}
+            onChange={(e) => onChange({ container_name: e.target.value })}
+            placeholder="Leave empty to check all containers"
+            className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+          />
+        )}
       </div>
       )}
 

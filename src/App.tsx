@@ -10,6 +10,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ServerDetail = lazy(() => import('./pages/ServerDetail'));
 const ServerCreate = lazy(() => import('./pages/ServerCreate'));
+const PodCreate = lazy(() => import('./pages/PodCreate'));
 const ServerEdit = lazy(() => import('./pages/ServerEdit'));
 const ServerSearch = lazy(() => import('./pages/ServerSearch'));
 const ServerImportExport = lazy(() => import('./pages/ServerImportExport'));
@@ -51,6 +52,7 @@ export default function App() {
           >
             <Route path="/" element={<SuspenseWrapper><Dashboard /></SuspenseWrapper>} />
             <Route path="/servers/new" element={<SuspenseWrapper><ServerCreate /></SuspenseWrapper>} />
+            <Route path="/servers/pods/new" element={<SuspenseWrapper><PodCreate /></SuspenseWrapper>} />
             <Route path="/servers/search" element={<SuspenseWrapper><ServerSearch /></SuspenseWrapper>} />
             <Route path="/servers/import-export" element={<SuspenseWrapper><ServerImportExport /></SuspenseWrapper>} />
             <Route path="/servers/:id" element={<SuspenseWrapper><ServerDetail /></SuspenseWrapper>} />

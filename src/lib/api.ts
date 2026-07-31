@@ -7,6 +7,7 @@ import type {
   ServerOntimeListResponse,
   ServerOntimeResponse,
   CreateServerRequest,
+  CreateK8sObjectRequest,
   UpdateServerRequest,
   RegisterRequest,
   LoginRequest,
@@ -105,6 +106,10 @@ export function apiListServers(page = 1, perPage = 20): Promise<ServerListRespon
 
 export function apiCreateServer(data: CreateServerRequest): Promise<ServerResponse> {
   return http.post('/api/v1/servers', data).then((r) => r.data);
+}
+
+export function apiCreateK8sObject(data: CreateK8sObjectRequest): Promise<ServerResponse> {
+  return http.post('/api/v1/k8s-objects', data).then((r) => r.data);
 }
 
 export function apiGetServer(id: number): Promise<ServerResponse> {

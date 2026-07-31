@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNotificationConfig, useUpdateNotificationConfig, useSendReport } from '../lib/queries';
 import type { NotificationConfig } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-export default function SettingsNotifications() {
-  const { data: config, isLoading } = useNotificationConfig();
+function SettingsForm({ config }: { config?: NotificationConfig }) {
   const updateMutation = useUpdateNotificationConfig();
   const sendMutation = useSendReport();
 
   const [form, setForm] = useState<NotificationConfig>({
-    from_date: '',
-    to_date: '',
-    digest_time: '08:00',
+    from_date: config?.from_date ?? '',
+    to_date: config?.to_date ?? '',
+    digest_time: config?.digest_time ?? '08:00',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -20,10 +19,6 @@ export default function SettingsNotifications() {
   const [reportSuccess, setReportSuccess] = useState('');
 
   const hasConfig = Boolean(form.from_date && form.to_date);
-
-  useEffect(() => {
-    if (config) setForm(config);
-  }, [config]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +51,6 @@ export default function SettingsNotifications() {
       setReportError(err instanceof Error ? err.message : 'Failed to send report');
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -184,4 +171,18 @@ export default function SettingsNotifications() {
       </div>
     </div>
   );
+}
+
+export default function SettingsNotifications() {
+  const { data: config, isLoading } = useNotificationConfig();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return <SettingsForm config={config} />;
 }
