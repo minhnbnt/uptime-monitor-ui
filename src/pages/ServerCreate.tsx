@@ -4,7 +4,8 @@ import { useCreateServer } from '../lib/queries';
 import { ApiError } from '../lib/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import K8sConfigForm from '../components/K8sConfigForm';
-import type { ServerKind } from '../types/api';
+import type { HttpConfig, ServerKind } from '../types/api';
+import { cleanHttpConfig } from '../types/api';
 
 export default function ServerCreate() {
   const navigate = useNavigate();
@@ -16,11 +17,16 @@ export default function ServerCreate() {
   const [containerName, setContainerName] = useState('');
   const [interval, setInterval] = useState(30);
   const [timeout, setTimeout] = useState(10);
+  const [httpConfig, setHttpConfig] = useState<HttpConfig | null>(null);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !namespace.trim() || !objectId.trim()) return;
+    if (httpConfig && !httpConfig.port) {
+      setError('Port is required when HTTP Check is enabled');
+      return;
+    }
     setError('');
     try {
       const res = await createMutation.mutateAsync({
@@ -31,6 +37,7 @@ export default function ServerCreate() {
         container_name: containerName.trim() || undefined,
         interval,
         timeout,
+        http_config: httpConfig ? cleanHttpConfig(httpConfig) : undefined,
       });
       navigate(`/servers/${res.data.id}`);
     } catch (err) {
@@ -38,13 +45,14 @@ export default function ServerCreate() {
     }
   };
 
-  const handleK8sChange = (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number }) => {
+  const handleK8sChange = (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number; http_config?: HttpConfig | null }) => {
     if (fields.namespace !== undefined) setNamespace(fields.namespace);
     if (fields.kind !== undefined) setKind(fields.kind);
     if (fields.object_id !== undefined) setObjectId(fields.object_id);
     if (fields.container_name !== undefined) setContainerName(fields.container_name);
     if (fields.interval !== undefined) setInterval(fields.interval);
     if (fields.timeout !== undefined) setTimeout(fields.timeout);
+    if (fields.http_config !== undefined) setHttpConfig(fields.http_config);
   };
 
   return (
@@ -100,6 +108,7 @@ export default function ServerCreate() {
           containerName={containerName}
           interval={interval}
           timeout={timeout}
+          httpConfig={httpConfig}
           onChange={handleK8sChange}
         />
 

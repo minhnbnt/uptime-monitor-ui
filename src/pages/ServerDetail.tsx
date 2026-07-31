@@ -150,6 +150,37 @@ export default function ServerDetail() {
             </div>
           )}
         </div>
+
+        {server.http_config && (
+          <div className="mt-4 rounded-lg bg-success/10 p-4">
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <p className="text-xs font-medium uppercase tracking-wider text-success">HTTP Check</p>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <p className="text-sm text-text-primary">
+                <span className="text-slate-500">Endpoint:</span>{' '}
+                <span className="font-mono">
+                  {server.http_config.method ?? 'GET'} :{server.http_config.port}
+                  {server.http_config.endpoint_path || '/'}
+                </span>
+              </p>
+              {server.http_config.expected_code != null && (
+                <p className="text-sm text-text-primary">
+                  <span className="text-slate-500">Expected status:</span> {server.http_config.expected_code}
+                </p>
+              )}
+              {server.http_config.body_check_expr && (
+                <p className="truncate text-sm text-text-primary" title={server.http_config.body_check_expr}>
+                  <span className="text-slate-500">Body check:</span>{' '}
+                  <span className="font-mono">{server.http_config.body_check_expr}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ontime chart */}

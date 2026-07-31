@@ -4,7 +4,25 @@ export interface PaginationMeta {
   total: number;
 }
 
-export type ServerKind = 'Pod' | 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'ReplicaSet';
+export type ServerKind = 'Pod' | 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'ReplicaSet' | 'Service';
+
+export interface HttpConfig {
+  port: number;
+  endpoint_path?: string;
+  expected_code?: number;
+  body_check_expr?: string;
+  method?: string;
+}
+
+export function cleanHttpConfig(cfg: HttpConfig): HttpConfig | undefined {
+  if (!cfg || !cfg.port) return undefined;
+  const clean: HttpConfig = { port: cfg.port };
+  if (cfg.endpoint_path) clean.endpoint_path = cfg.endpoint_path;
+  if (cfg.expected_code) clean.expected_code = cfg.expected_code;
+  if (cfg.body_check_expr) clean.body_check_expr = cfg.body_check_expr;
+  if (cfg.method) clean.method = cfg.method;
+  return clean;
+}
 
 export interface ServerObject {
   id: number;
@@ -19,6 +37,7 @@ export interface ServerObject {
   created_at: string;
   updated_at: string;
   ontime_stats?: OntimeStats[];
+  http_config?: HttpConfig | null;
 }
 
 export interface CreateServerRequest {
@@ -29,6 +48,7 @@ export interface CreateServerRequest {
   container_name?: string;
   interval?: number;
   timeout?: number;
+  http_config?: HttpConfig;
 }
 
 export interface UpdateServerRequest {
@@ -39,6 +59,7 @@ export interface UpdateServerRequest {
   container_name?: string;
   interval?: number;
   timeout?: number;
+  http_config?: HttpConfig | null;
 }
 
 export interface ServerResponse {
@@ -118,6 +139,7 @@ export interface TestEndpointRequest {
   kind: ServerKind;
   container_name?: string;
   timeout?: number;
+  http_config?: HttpConfig;
 }
 
 export interface TestEndpointResponse {
