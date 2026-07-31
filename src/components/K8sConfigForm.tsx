@@ -17,11 +17,12 @@ interface Props {
   timeout: number;
   httpConfig: HttpConfig | null;
   showKind?: boolean;
+  showTest?: boolean;
   onChange: (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number; http_config?: HttpConfig | null }) => void;
   onContainersChange?: (containers: ContainerSpec[]) => void;
 }
 
-export default function K8sConfigForm({ namespace, kind, objectId, containerName, containers, interval, timeout, httpConfig, showKind = true, onChange, onContainersChange }: Props) {
+export default function K8sConfigForm({ namespace, kind, objectId, containerName, containers, interval, timeout, httpConfig, showKind = true, showTest = true, onChange, onContainersChange }: Props) {
   const testMutation = useTestEndpoint();
   const [testResult, setTestResult] = useState<{ running: boolean; error?: string } | null>(null);
   const showContainersEditor = !!onContainersChange && kind === 'Pod';
@@ -319,6 +320,7 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
       </div>
 
       {/* Test connection */}
+      {showTest && (
       <div>
         <button
           type="button"
@@ -376,6 +378,7 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

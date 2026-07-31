@@ -114,6 +114,7 @@ export default function PodCreate() {
           timeout={timeout}
           httpConfig={httpConfig}
           showKind={false}
+          showTest={false}
           onChange={handleK8sChange}
           onContainersChange={setContainers}
         />
