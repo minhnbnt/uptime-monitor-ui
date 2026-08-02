@@ -53,11 +53,11 @@ export default function Login() {
 
           <div>
             <label htmlFor="login" className="mb-1.5 block text-sm font-medium text-slate-300">
-              Email or Username
+              Email
             </label>
             <input
               id="login"
-              type="text"
+              type="email"
               value={loginStr}
               onChange={(e) => setLoginStr(e.target.value)}
               className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"

@@ -1,15 +1,26 @@
 import axios from 'axios';
-import { getAccessToken, getRefreshToken, setTokens, clearTokens, setStoredUser } from './tokens';
-import type { AuthResponse } from '../types/api';
+import { getAccessToken, setAccessToken, clearTokens, setStoredUser } from './tokens';
+import { getAuthClient, sessionToUser } from './auth-client';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
 const http = axios.create({ baseURL: BASE_URL });
 
 http.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+  return (async () => {
+    let token = getAccessToken();
+    if (!token) {
+      const { data } = await getAuthClient().getSession();
+      token = data.session?.access_token ?? null;
+      if (token) {
+        setAccessToken(token);
+        const user = sessionToUser(data.session);
+        if (user) setStoredUser(user);
+      }
+    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  })();
 });
 
 let refreshPromise: Promise<boolean> | null = null;
@@ -23,15 +34,12 @@ http.interceptors.response.use(
 
     if (!refreshPromise) {
       refreshPromise = (async () => {
-        const refreshToken = getRefreshToken();
-        if (!refreshToken) return false;
         try {
-          const { data } = await axios.post<AuthResponse>(
-            `${BASE_URL}/api/v1/auth/refresh`,
-            { refresh_token: refreshToken },
-          );
-          setTokens(data.access_token, data.refresh_token);
-          setStoredUser(data.user);
+          const { data, error } = await getAuthClient().refreshSession();
+          if (error || !data.session) return false;
+          setAccessToken(data.session.access_token);
+          const user = sessionToUser(data.session);
+          if (user) setStoredUser(user);
           return true;
         } catch {
           clearTokens();

@@ -126,20 +126,10 @@ export interface LoginRequest {
 }
 
 export interface UserProfile {
-  id: number;
+  id: string;
   email: string;
   username: string;
   name: string;
-}
-
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  user: UserProfile;
-}
-
-export interface RefreshTokenRequest {
-  refresh_token: string;
 }
 
 export interface ApiErrorBody {

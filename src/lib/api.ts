@@ -1,7 +1,5 @@
 import http from './http';
-import { getRefreshToken, setTokens, clearTokens, setStoredUser } from './tokens';
 import type {
-  AuthResponse,
   ServerListResponse,
   ServerResponse,
   ServerOntimeListResponse,
@@ -9,10 +7,6 @@ import type {
   CreateServerRequest,
   CreateK8sObjectRequest,
   UpdateServerRequest,
-  RegisterRequest,
-  LoginRequest,
-  RefreshTokenRequest,
-  UserProfile,
   ServerObject,
   ServerWithOntime,
   ServerCountResponse,
@@ -50,54 +44,6 @@ export class SessionExpiredError extends Error {
     super('Session expired');
     this.name = 'SessionExpiredError';
   }
-}
-
-
-
-export async function initAuth(): Promise<UserProfile | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
-
-  try {
-    const { data } = await http.post<AuthResponse>('/api/v1/auth/refresh', {
-      refresh_token: refreshToken,
-    } satisfies RefreshTokenRequest);
-    setTokens(data.access_token, data.refresh_token);
-    setStoredUser(data.user);
-    return data.user;
-  } catch {
-    clearTokens();
-    return null;
-  }
-}
-
-export async function attemptRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
-
-  try {
-    const { data } = await http.post<AuthResponse>('/api/v1/auth/refresh', {
-      refresh_token: refreshToken,
-    } satisfies RefreshTokenRequest);
-    setTokens(data.access_token, data.refresh_token);
-    setStoredUser(data.user);
-    return true;
-  } catch {
-    clearTokens();
-    return false;
-  }
-}
-
-export function apiLogin(data: LoginRequest): Promise<AuthResponse> {
-  return http.post('/api/v1/auth/login', data).then((r) => r.data);
-}
-
-export function apiRegister(data: RegisterRequest): Promise<AuthResponse> {
-  return http.post('/api/v1/auth/register', data).then((r) => r.data);
-}
-
-export function apiLogout(data: RefreshTokenRequest): Promise<void> {
-  return http.post('/api/v1/auth/logout', data);
 }
 
 export function apiListServers(page = 1, perPage = 20): Promise<ServerListResponse> {
@@ -196,4 +142,4 @@ export function apiSendReport(): Promise<void> {
   return http.post('/api/v1/notifications/send-report');
 }
 
-export type { ServerObject, ServerWithOntime, UserProfile };
+export type { ServerObject, ServerWithOntime };

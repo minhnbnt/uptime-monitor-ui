@@ -4,12 +4,13 @@ Frontend for the uptime monitor. React 19 + TypeScript + Vite.
 
 ## Configuration
 
-The API base URL is configurable via the `VITE_API_BASE_URL` environment variable. When unset, it defaults to `http://localhost:8080`.
+The API base URL is configurable via the `VITE_API_BASE_URL` environment variable. The auth base URL is configurable via `VITE_AUTH_BASE_URL`. When unset, they default to `http://localhost:8080` and `http://localhost:8080/auth/v1`.
 
 Create a `.env` (or `.env.local`) file:
 
 ```
 VITE_API_BASE_URL=http://localhost:8080
+VITE_AUTH_BASE_URL=http://localhost:8080/auth/v1
 ```
 
 ## React + TypeScript + Vite

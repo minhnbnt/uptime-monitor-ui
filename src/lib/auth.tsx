@@ -1,13 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { LoginRequest, RegisterRequest, UserProfile } from '../types/api';
-import { setTokens, clearTokens, setStoredUser, getRefreshToken } from './tokens';
-import {
-  apiLogin,
-  apiRegister,
-  apiLogout,
-  initAuth,
-  attemptRefresh,
-} from './api';
+import { setAccessToken, clearTokens, setStoredUser } from './tokens';
+import { ApiError } from './api';
+import { getAuthClient, sessionToUser, toUserProfile } from './auth-client';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -25,13 +20,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const auth = getAuthClient();
 
   useEffect(() => {
-    initAuth().then((u) => {
-      if (u) setUser(u);
+    let mounted = true;
+
+    auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) {
+        clearTokens();
+      } else if (data.session) {
+        setAccessToken(data.session.access_token);
+        const profile = sessionToUser(data.session);
+        if (profile) {
+          setStoredUser(profile);
+          setUser(profile);
+        }
+      } else {
+        clearTokens();
+      }
       setIsLoading(false);
     });
-  }, []);
+
+    const { data: { subscription } } = auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        clearTokens();
+        setUser(null);
+        setSessionExpired(false);
+        return;
+      }
+
+      setAccessToken(session.access_token);
+      const profile = sessionToUser(session);
+      if (profile) {
+        setStoredUser(profile);
+        setUser(profile);
+        setSessionExpired(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [auth]);
 
   useEffect(() => {
     const handler = () => {
@@ -40,56 +72,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('session-expired', handler);
     return () => window.removeEventListener('session-expired', handler);
-  }, []);
+  }, [auth]);
 
   const login = useCallback(async (data: LoginRequest) => {
     setIsLoading(true);
     setSessionExpired(false);
     try {
-      const res = await apiLogin(data);
-      setTokens(res.access_token, res.refresh_token);
-      setStoredUser(res.user);
-      setUser(res.user);
+      const { data: authData, error } = await auth.signInWithPassword({
+        email: data.login,
+        password: data.password,
+      });
+      if (error) throw new ApiError(400, 'auth_error', error.message);
+      const profile = authData.user ? toUserProfile(authData.user) : null;
+      if (!profile || !authData.session) throw new ApiError(400, 'auth_error', 'Login failed');
+      setAccessToken(authData.session.access_token);
+      setStoredUser(profile);
+      setUser(profile);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [auth]);
 
   const register = useCallback(async (data: RegisterRequest) => {
     setIsLoading(true);
     setSessionExpired(false);
     try {
-      const res = await apiRegister(data);
-      setTokens(res.access_token, res.refresh_token);
-      setStoredUser(res.user);
-      setUser(res.user);
+      const { data: authData, error } = await auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            username: data.username,
+            name: data.name,
+            full_name: data.name,
+          },
+        },
+      });
+      if (error) throw new ApiError(400, 'auth_error', error.message);
+      const profile = authData.user ? toUserProfile(authData.user) : null;
+      if (profile) {
+        setUser(profile);
+        setStoredUser(profile);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [auth]);
 
   const logout = useCallback(async () => {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        await apiLogout({ refresh_token: refreshToken });
-      } catch {
-        // ignore logout errors
-      }
+    try {
+      await auth.signOut();
+    } catch {
+      // ignore logout errors
     }
     clearTokens();
     setUser(null);
-  }, []);
+  }, [auth]);
 
   const refreshTokenFn = useCallback(async () => {
-    const success = await attemptRefresh();
-    if (success) {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser) as UserProfile);
+    try {
+      const { data, error } = await auth.refreshSession();
+      if (error || !data.session) return false;
+      const profile = sessionToUser(data.session);
+      if (profile) {
+        setAccessToken(data.session.access_token);
+        setStoredUser(profile);
+        setUser(profile);
       }
+      return true;
+    } catch {
+      clearTokens();
+      return false;
     }
-    return success;
   }, []);
 
   return (
