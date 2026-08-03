@@ -30,6 +30,7 @@ export interface ServerObject {
   namespace: string;
   kind: ServerKind;
   object_id: string;
+  managed?: boolean;
   container_name?: string;
   interval?: number;
   timeout?: number;

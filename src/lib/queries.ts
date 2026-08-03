@@ -9,6 +9,7 @@ import {
   apiGetNotificationConfig,
   apiCreateServer,
   apiCreateK8sObject,
+  apiDeleteK8sObject,
   apiUpdateServer,
   apiDeleteServer,
   apiUpdateNotificationConfig,
@@ -103,6 +104,15 @@ export function useCreateK8sObject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateK8sObjectRequest) => apiCreateK8sObject(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['servers'] }),
+  });
+}
+
+export function useDeleteK8sObject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ namespace, objectId }: { namespace: string; objectId: string }) =>
+      apiDeleteK8sObject(namespace, objectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['servers'] }),
   });
 }

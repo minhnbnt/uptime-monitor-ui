@@ -58,6 +58,10 @@ export function apiCreateK8sObject(data: CreateK8sObjectRequest): Promise<Server
   return http.post('/api/v1/k8s-objects', data).then((r) => r.data);
 }
 
+export function apiDeleteK8sObject(namespace: string, objectId: string): Promise<void> {
+  return http.delete('/api/v1/k8s-objects', { params: { namespace, object_id: objectId } }).then(() => undefined);
+}
+
 export function apiGetServer(id: number): Promise<ServerResponse> {
   return http.get(`/api/v1/servers/${id}`).then((r) => r.data);
 }

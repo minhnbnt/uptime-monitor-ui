@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useServer, useServerOntime, useDeleteServer } from '../lib/queries';
+import { useServer, useServerOntime, useDeleteServer, useDeleteK8sObject } from '../lib/queries';
 import { ApiError, toUiStatus } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
@@ -13,20 +14,49 @@ export default function ServerDetail() {
   const { data: serverRes, isLoading, error } = useServer(serverId);
   const { data: ontimeRes } = useServerOntime(serverId);
   const deleteMutation = useDeleteServer();
+  const deletePodMutation = useDeleteK8sObject();
 
   const server = serverRes?.data ?? null;
   const queryError = error instanceof ApiError && error.status === 404
     ? 'Server not found'
     : error instanceof Error ? error.message : '';
 
+  const [podOffer, setPodOffer] = useState<{ namespace: string; objectId: string } | null>(null);
+  const [podError, setPodError] = useState('');
+
   const handleDelete = async () => {
     if (!server || !window.confirm(`Delete server "${server.name}"? This action cannot be undone.`)) return;
+
+    const { namespace, object_id: objectId, managed, kind } = server;
+
     try {
       await deleteMutation.mutateAsync(server.id);
-      navigate('/');
+      // If this was a managed pod created by the system, offer to delete it too.
+      if (managed && kind === 'Pod' && namespace && objectId) {
+        setPodError('');
+        setPodOffer({ namespace, objectId });
+      } else {
+        navigate('/');
+      }
     } catch {
       // error handled by mutation state
     }
+  };
+
+  const handleAcceptPodDelete = async () => {
+    if (!podOffer) return;
+    try {
+      await deletePodMutation.mutateAsync({ namespace: podOffer.namespace, objectId: podOffer.objectId });
+      setPodOffer(null);
+      navigate('/');
+    } catch (err) {
+      setPodError(err instanceof ApiError ? err.message : 'Failed to delete pod');
+    }
+  };
+
+  const handleDismissPodDelete = () => {
+    setPodOffer(null);
+    navigate('/');
   };
 
   if (isLoading) {
@@ -52,6 +82,42 @@ export default function ServerDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      {/* Pod deletion suggestion after server delete */}
+      {podOffer && (
+        <div className="rounded-xl border border-warning/40 bg-warning/10 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-warning">
+                Server deleted. Delete the pod too?
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                The pod <span className="font-mono">{podOffer.namespace}/{podOffer.objectId}</span> is still in the cluster.
+              </p>
+              {podError && (
+                <p className="mt-1 text-xs text-danger">{podError}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDismissPodDelete}
+                disabled={deletePodMutation.isPending}
+                className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-200 disabled:opacity-60"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={handleAcceptPodDelete}
+                disabled={deletePodMutation.isPending}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletePodMutation.isPending ? <LoadingSpinner size="sm" /> : null}
+                Delete Pod
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back + actions */}
       <div className="flex items-center justify-between">
         <Link
