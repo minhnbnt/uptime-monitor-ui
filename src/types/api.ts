@@ -31,6 +31,7 @@ export interface ServerObject {
   kind: ServerKind;
   object_id: string;
   container_name?: string;
+  managed?: boolean;
   interval?: number;
   timeout?: number;
   monitor_status: 'ON' | 'OFF' | null;

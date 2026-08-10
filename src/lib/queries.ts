@@ -11,6 +11,7 @@ import {
   apiCreateK8sObject,
   apiUpdateServer,
   apiDeleteServer,
+  apiDeleteK8sObject,
   apiUpdateNotificationConfig,
   apiSendReport,
   apiTestEndpoint,
@@ -123,6 +124,13 @@ export function useDeleteServer() {
   return useMutation({
     mutationFn: (id: number) => apiDeleteServer(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['servers'] }),
+  });
+}
+
+export function useDeleteK8sObject() {
+  return useMutation({
+    mutationFn: ({ namespace, objectId }: { namespace: string; objectId: string }) =>
+      apiDeleteK8sObject(namespace, objectId),
   });
 }
 

@@ -70,6 +70,10 @@ export function apiDeleteServer(id: number): Promise<void> {
   return http.delete(`/api/v1/servers/${id}`);
 }
 
+export function apiDeleteK8sObject(namespace: string, objectId: string): Promise<void> {
+  return http.delete('/api/v1/k8s-objects', { params: { namespace, object_id: objectId } });
+}
+
 export function apiGetServerOntime(id: number): Promise<ServerOntimeResponse> {
   return http.get(`/api/v1/servers/ontime/${id}`).then((r) => r.data);
 }

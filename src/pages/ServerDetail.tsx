@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useServer, useServerOntime, useDeleteServer } from '../lib/queries';
+import { useServer, useServerOntime, useDeleteServer, useDeleteK8sObject } from '../lib/queries';
 import { ApiError, toUiStatus } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
@@ -13,6 +13,7 @@ export default function ServerDetail() {
   const { data: serverRes, isLoading, error } = useServer(serverId);
   const { data: ontimeRes } = useServerOntime(serverId);
   const deleteMutation = useDeleteServer();
+  const deleteK8sMutation = useDeleteK8sObject();
 
   const server = serverRes?.data ?? null;
   const queryError = error instanceof ApiError && error.status === 404
@@ -23,6 +24,15 @@ export default function ServerDetail() {
     if (!server || !window.confirm(`Delete server "${server.name}"? This action cannot be undone.`)) return;
     try {
       await deleteMutation.mutateAsync(server.id);
+      if (server.managed && window.confirm(
+        `Delete the actual Pod "${server.object_id}" in namespace "${server.namespace}" from the cluster?`,
+      )) {
+        try {
+          await deleteK8sMutation.mutateAsync({ namespace: server.namespace, objectId: server.object_id });
+        } catch (err) {
+          window.alert(`Server deleted, but the pod could not be removed from the cluster: ${err instanceof ApiError ? err.message : 'unknown error'}`);
+        }
+      }
       navigate('/');
     } catch {
       // error handled by mutation state
