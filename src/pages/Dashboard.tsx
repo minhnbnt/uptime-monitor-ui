@@ -2,16 +2,20 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useServers, useServerCount, useServersOntimeList } from '../lib/queries';
 import { toUiStatus } from '../lib/api';
-import type { ServerObject, ServerWithOntime } from '../types/api';
+import type { ServerObject, ServerWithOntime, OntimeStats } from '../types/api';
 
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-function avg(stats: { stats: number }[]) {
+function avg(stats: OntimeStats[]) {
   if (!stats || stats.length === 0) return null;
-  return stats.reduce((s, d) => s + d.stats, 0) / stats.length;
+  // Only days with recorded state count toward the average — a no-data day
+  // is a gap, not a 0% that would drag the figure down.
+  const withData = stats.filter((d) => d.has_data !== false);
+  if (withData.length === 0) return null;
+  return withData.reduce((s, d) => s + d.stats, 0) / withData.length;
 }
 
 export default function Dashboard() {

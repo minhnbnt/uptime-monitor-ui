@@ -45,7 +45,7 @@ export default function PodCreate() {
       });
       navigate(`/servers/${res.data.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to create pod');
+      setError(err instanceof ApiError ? err.message : 'Failed to create server');
     }
   };
 
@@ -73,8 +73,8 @@ export default function PodCreate() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Create Pod</h1>
-        <p className="mt-1 text-sm text-slate-400">Create a pod in the cluster and start monitoring it</p>
+        <h1 className="text-2xl font-bold text-text-primary">Create Server</h1>
+        <p className="mt-1 text-sm text-slate-400">Create a server in the cluster and start monitoring it</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-border bg-surface p-6">
@@ -132,7 +132,7 @@ export default function PodCreate() {
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {createMutation.isPending ? <LoadingSpinner size="sm" /> : null}
-            Create Pod
+            Create Server
           </button>
         </div>
       </form>

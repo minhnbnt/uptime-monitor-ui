@@ -92,6 +92,7 @@ export interface OntimeStats {
   date: string;
   stats: number;
   to?: string;
+  has_data?: boolean;
 }
 
 export interface ServerWithOntime {
@@ -184,11 +185,14 @@ export interface IntervalResult {
   from: string;
   to: string;
   uptime: number;
+  has_data?: boolean;
 }
 
 export interface UptimeResponse {
   server_id: number;
   uptime: number;
+  has_data?: boolean;
+  partial?: boolean;
   from: string;
   to: string;
   total_seconds: number;

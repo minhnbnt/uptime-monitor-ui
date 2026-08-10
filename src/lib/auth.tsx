@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTokens();
       return false;
     }
-  }, []);
+  }, [auth]);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, sessionExpired, login, register, logout, refreshToken: refreshTokenFn }}>

@@ -34,9 +34,17 @@ export default function ServerUptimeRange() {
   const calcMutation = useCalculateUptime(serverId);
   const server = serverRes?.data ?? null;
 
+  // datetime-local inputs expect a local-time string (no timezone suffix).
+  // Format from the date's local components so defaults aren't shifted by the
+  // UTC conversion that toISOString() would introduce.
+  const toLocalInput = (d: Date): string => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const now = new Date();
-  const defaultTo = now.toISOString().slice(0, 16);
-  const defaultFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+  const defaultTo = toLocalInput(now);
+  const defaultFrom = toLocalInput(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
   const [calcFrom, setCalcFrom] = useState(defaultFrom);
   const [calcTo, setCalcTo] = useState(defaultTo);
@@ -143,31 +151,43 @@ export default function ServerUptimeRange() {
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-surface-elevated p-4 text-center">
-                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Uptime</p>
-                <p className="mt-1 text-2xl font-bold" style={{ color: getUptimeColor(calcResult.uptime) }}>
-                  {calcResult.uptime.toFixed(2)}%
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  Uptime{calcResult.partial ? ' (partial range)' : ''}
                 </p>
+                {calcResult.has_data === false ? (
+                  <p className="mt-1 text-2xl font-bold text-slate-500">No data</p>
+                ) : (
+                  <p className="mt-1 text-2xl font-bold" style={{ color: getUptimeColor(calcResult.uptime) }}>
+                    {calcResult.uptime.toFixed(2)}%
+                  </p>
+                )}
               </div>
               <div className="rounded-lg bg-surface-elevated p-4 text-center">
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Online</p>
-                <p className="mt-1 text-2xl font-bold text-success">
-                  {formatSeconds(calcResult.online_seconds)}
-                </p>
+                {calcResult.has_data === false ? (
+                  <p className="mt-1 text-2xl font-bold text-slate-500">—</p>
+                ) : (
+                  <p className="mt-1 text-2xl font-bold text-success">
+                    {formatSeconds(calcResult.online_seconds)}
+                  </p>
+                )}
               </div>
             </div>
             {(() => {
               const resMs = resolutionMs(lastCalcResolution);
-              const pts: { date: string; stats: number }[] = [];
+              // has_data:false intervals are passed through so the chart draws
+              // a gap instead of a misleading 0%.
+              const pts: { date: string; stats: number; has_data?: boolean }[] = [];
               for (let i = 0; i < calcResult.intervals.length; i++) {
                 const iv = calcResult.intervals[i];
                 const fromMs = new Date(iv.from).getTime();
                 const toMs = new Date(iv.to).getTime();
                 const isLast = i === calcResult.intervals.length - 1;
-                pts.push({ date: iv.from, stats: iv.uptime });
+                pts.push({ date: iv.from, stats: iv.uptime, has_data: iv.has_data });
                 if (isLast) {
-                  pts.push({ date: iv.to, stats: iv.uptime });
+                  pts.push({ date: iv.to, stats: iv.uptime, has_data: iv.has_data });
                 } else if (toMs - fromMs > resMs) {
-                  pts.push({ date: new Date(toMs - resMs).toISOString(), stats: iv.uptime });
+                  pts.push({ date: new Date(toMs - resMs).toISOString(), stats: iv.uptime, has_data: iv.has_data });
                 }
               }
               return <OntimeChart data={pts} height={200} timeScale />;

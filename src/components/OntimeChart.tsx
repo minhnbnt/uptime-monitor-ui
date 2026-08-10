@@ -11,11 +11,20 @@ import {
 import type { OntimeStats } from '../types/api';
 
 interface Props {
-  data: OntimeStats[];
+  // `stats` may be a real percentage or (when has_data is absent/false) a
+  // placeholder for a day with no recorded state. Such no-data points are
+  // rendered as a gap in the line rather than a misleading 0%.
+  data: Array<Pick<OntimeStats, 'date' | 'stats' | 'to' | 'has_data'>>;
   height?: number;
   timeScale?: boolean;
   step?: boolean;
   linear?: boolean;
+}
+
+interface ChartPoint {
+  date: number | string;
+  stats: number | null;
+  to?: string;
 }
 
 function fmtDate(v: number | string): string {
@@ -33,21 +42,21 @@ function getDotColor(value: number): string {
   return '#EF4444';
 }
 
-function renderDot(props: { cx?: number; cy?: number; payload?: OntimeStats }) {
+function renderDot(props: { cx?: number; cy?: number; payload?: ChartPoint }) {
   if (props.cx == null || props.cy == null || !props.payload) return null;
   return (
-    <circle cx={props.cx} cy={props.cy} r={3} fill={getDotColor(props.payload.stats)} stroke="none" />
+    <circle cx={props.cx} cy={props.cy} r={3} fill={getDotColor(Number(props.payload.stats))} stroke="none" />
   );
 }
 
-function renderActiveDot(props: { cx?: number; cy?: number; payload?: OntimeStats }) {
+function renderActiveDot(props: { cx?: number; cy?: number; payload?: ChartPoint }) {
   if (props.cx == null || props.cy == null || !props.payload) return null;
   return (
     <circle
       cx={props.cx}
       cy={props.cy}
       r={5}
-      fill={getDotColor(props.payload.stats)}
+      fill={getDotColor(Number(props.payload.stats))}
       stroke="#020617"
       strokeWidth={2}
     />
@@ -63,7 +72,26 @@ export default function OntimeChart({ data, height = 200, timeScale, step, linea
     );
   }
 
-  const chartData = (!timeScale ? data : data.map((d) => ({ ...d, date: new Date(d.date).getTime() }))) as Record<string, unknown>[];
+  // No-data points become `null` stats so recharts breaks the line into a
+  // gap instead of showing 0%.
+  const chartData = (data.map((d) => {
+    const hasData = d.has_data !== false;
+    return {
+      date: timeScale ? new Date(d.date).getTime() : d.date,
+      stats: hasData ? d.stats : null,
+      to: d.to,
+    };
+  })) as ChartPoint[];
+
+  // Every point is no-data (e.g. a brand-new server with no history): show a
+  // placeholder rather than an empty plot with axes.
+  if (!chartData.some((p) => p.stats != null)) {
+    return (
+      <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-slate-500">
+        No data available
+      </div>
+    );
+  }
 
   const isShort = chartData.length > 1
     && Number(chartData[chartData.length - 1].date) - Number(chartData[0].date) < 86400000;
@@ -113,7 +141,7 @@ export default function OntimeChart({ data, height = 200, timeScale, step, linea
           labelStyle={{ color: '#F8FAFC' }}
           formatter={(value, _name, entry) => {
             const v = Number(value);
-            const payload = entry?.payload as OntimeStats & { to?: string };
+            const payload = entry?.payload as ChartPoint;
             const ts = Number(payload?.date);
             const label = payload?.to && Number.isFinite(ts)
               ? `${fmt(ts)} – ${fmt(new Date(payload.to).getTime())}`
@@ -136,12 +164,14 @@ export default function OntimeChart({ data, height = 200, timeScale, step, linea
           dataKey="stats"
           fill="url(#areaGrad)"
           stroke="none"
+          connectNulls={false}
         />
         <Line
           type={lineType}
           dataKey="stats"
           stroke="#475569"
           strokeWidth={2}
+          connectNulls={false}
           dot={renderDot}
           activeDot={renderActiveDot}
         />

@@ -168,7 +168,22 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
           <input
             type="checkbox"
             checked={!!httpConfig}
-            onChange={(e) => onChange({ http_config: e.target.checked ? { port: 80, method: 'GET' } : null })}
+            onChange={(e) => {
+              if (e.target.checked) {
+                // HTTP Check only works for Service/Pod/StatefulSet. If the
+                // current kind isn't one of those (e.g. default Deployment),
+                // coerce it to a valid HTTP kind so the submitted kind matches,
+                // otherwise the select would show a blank but still send the
+                // old kind up.
+                const next = HTTP_KINDS.includes(kind) ? kind : 'Service';
+                onChange({
+                  http_config: { port: 80, method: 'GET' },
+                  kind: next,
+                });
+              } else {
+                onChange({ http_config: null });
+              }
+            }}
             className="h-4 w-4 cursor-pointer rounded border-border bg-surface-elevated accent-success"
           />
           <div>
