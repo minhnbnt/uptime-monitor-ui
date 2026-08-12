@@ -3,7 +3,7 @@ import {
   apiListServers,
   apiGetServer,
   apiGetServerOntime,
-  apiListServersOntime,
+  apiGetServersOntime,
   apiCountServers,
   apiSearchServers,
   apiGetNotificationConfig,
@@ -54,10 +54,11 @@ export function useServerOntime(id: number | undefined) {
   });
 }
 
-export function useServersOntimeList(page: number) {
+export function useServersOntime(ids: number[]) {
   return useQuery({
-    queryKey: ['servers', 'ontime', page],
-    queryFn: () => apiListServersOntime(page, 20),
+    queryKey: ['servers', 'ontime', [...ids].sort((a, b) => a - b)],
+    queryFn: () => apiGetServersOntime(ids),
+    enabled: ids.length > 0,
     ...stale30s,
   });
 }

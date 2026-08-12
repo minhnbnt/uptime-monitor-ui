@@ -78,8 +78,8 @@ export function apiGetServerOntime(id: number): Promise<ServerOntimeResponse> {
   return http.get(`/api/v1/servers/ontime/${id}`).then((r) => r.data);
 }
 
-export function apiListServersOntime(page = 1, perPage = 20): Promise<ServerOntimeListResponse> {
-  return http.get('/api/v1/servers/ontime', { params: { page, per_page: perPage } }).then((r) => r.data);
+export function apiGetServersOntime(ids: number[]): Promise<ServerOntimeListResponse> {
+  return http.post('/api/v1/servers/ontime/batch', { ids }).then((r) => r.data);
 }
 
 export function apiCountServers(): Promise<ServerCountResponse> {

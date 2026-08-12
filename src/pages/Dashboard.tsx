@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useServers, useServerCount, useServersOntimeList } from '../lib/queries';
+import { useServers, useServerCount, useServersOntime } from '../lib/queries';
 import { toUiStatus } from '../lib/api';
 import type { ServerObject, ServerWithOntime, OntimeStats } from '../types/api';
 
@@ -22,9 +22,11 @@ export default function Dashboard() {
   const [page, setPage] = useState(1);
   const { data: serversRes, isLoading, error } = useServers(page);
   const { data: count } = useServerCount();
-  const { data: ontimeRes } = useServersOntimeList(page);
 
   const servers = serversRes?.data ?? [];
+  const ids = servers.map((s) => s.id);
+  const { data: ontimeRes } = useServersOntime(ids);
+
   const meta = serversRes?.meta ?? { page: 1, per_page: 20, total: 0 };
 
   const ontime = useMemo(() => {
