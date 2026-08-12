@@ -111,6 +111,7 @@ function EditForm({ server }: { server: ServerObject }) {
           interval={interval}
           timeout={timeout}
           httpConfig={httpConfig}
+          managed={server.managed}
           onChange={handleK8sChange}
         />
 

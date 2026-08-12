@@ -18,11 +18,12 @@ interface Props {
   httpConfig: HttpConfig | null;
   showKind?: boolean;
   showTest?: boolean;
+  managed?: boolean;
   onChange: (fields: { namespace?: string; kind?: ServerKind; object_id?: string; container_name?: string; interval?: number; timeout?: number; http_config?: HttpConfig | null }) => void;
   onContainersChange?: (containers: ContainerSpec[]) => void;
 }
 
-export default function K8sConfigForm({ namespace, kind, objectId, containerName, containers, interval, timeout, httpConfig, showKind = true, showTest = true, onChange, onContainersChange }: Props) {
+export default function K8sConfigForm({ namespace, kind, objectId, containerName, containers, interval, timeout, httpConfig, showKind = true, showTest = true, managed = false, onChange, onContainersChange }: Props) {
   const testMutation = useTestEndpoint();
   const [testResult, setTestResult] = useState<{ running: boolean; error?: string } | null>(null);
   const showContainersEditor = !!onContainersChange && kind === 'Pod';
@@ -73,7 +74,8 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
           value={namespace}
           onChange={(e) => onChange({ namespace: e.target.value })}
           placeholder="default"
-          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={managed}
           required
         />
       </div>
@@ -88,10 +90,11 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
             id="k8s-kind"
             value={kind}
             onChange={(e) => onChange({ kind: e.target.value as ServerKind })}
-            className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+            className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={managed}
           >
             {KINDS.filter((k) => !httpConfig || HTTP_KINDS.includes(k)).map((k) => (
-              <option key={k} value={k}>{k}</option>
+              <option key={k} value={k}>{k === 'Pod' ? 'Server' : k}</option>
             ))}
           </select>
         </div>
@@ -108,7 +111,8 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
           value={objectId}
           onChange={(e) => onChange({ object_id: e.target.value })}
           placeholder="my-app"
-          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
+          className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary placeholder-slate-500 transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={managed}
           required
         />
         <p className="mt-1 text-xs text-slate-500">
