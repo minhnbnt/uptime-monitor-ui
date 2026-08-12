@@ -31,16 +31,19 @@ function EditForm({ server }: { server: ServerObject }) {
     setError('');
     setSaving(true);
     try {
-      const res = await updateMutation.mutateAsync({
+      const payload: import('../types/api').UpdateServerRequest = {
         name: name.trim(),
-        namespace: namespace.trim(),
-        kind,
-        object_id: objectId.trim(),
         container_name: containerName.trim() || undefined,
         interval,
         timeout,
         http_config: httpConfig ? cleanHttpConfig(httpConfig) : null,
-      });
+      };
+      if (!server.managed) {
+        payload.namespace = namespace.trim();
+        payload.kind = kind;
+        payload.object_id = objectId.trim();
+      }
+      const res = await updateMutation.mutateAsync(payload);
       navigate(`/servers/${res.data.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to update server');

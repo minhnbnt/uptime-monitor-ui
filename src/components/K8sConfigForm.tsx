@@ -94,7 +94,7 @@ export default function K8sConfigForm({ namespace, kind, objectId, containerName
             disabled={managed}
           >
             {KINDS.filter((k) => !httpConfig || HTTP_KINDS.includes(k)).map((k) => (
-              <option key={k} value={k}>{k === 'Pod' ? 'Server' : k}</option>
+              <option key={k} value={k}>{managed && k === kind ? 'Server' : k}</option>
             ))}
           </select>
         </div>

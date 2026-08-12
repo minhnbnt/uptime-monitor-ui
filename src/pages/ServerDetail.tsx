@@ -191,7 +191,7 @@ export default function ServerDetail() {
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Kind</p>
-            <p className="mt-1 text-sm text-text-primary">{server.kind === 'Pod' ? 'Server' : server.kind}</p>
+            <p className="mt-1 text-sm text-text-primary">{server.managed ? 'Server' : server.kind}</p>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Object Name</p>
