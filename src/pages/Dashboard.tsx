@@ -23,13 +23,12 @@ export default function Dashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
     Promise.all([apiListServers(page, 20), apiCountServers()])
       .then(([res, counts]) => {
         setServers(res.data);
         setMeta(res.meta);
         setCount(counts);
+        setError('');
       })
       .catch((err) => setError(err.message ?? 'Failed to load servers'))
       .finally(() => setLoading(false));

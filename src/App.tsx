@@ -13,6 +13,7 @@ import ServerSearch from './pages/ServerSearch';
 import ServerImportExport from './pages/ServerImportExport';
 
 import SettingsNotifications from './pages/SettingsNotifications';
+import SettingsSessions from './pages/SettingsSessions';
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/servers/:id/check-method" element={<CheckMethodSetup />} />
 
             <Route path="/settings/notifications" element={<SettingsNotifications />} />
+            <Route path="/settings/sessions" element={<SettingsSessions />} />
           </Route>
 
           {/* Catch-all */}

@@ -22,20 +22,19 @@ export default function ServerSearch() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!query.trim()) {
-      setData([]);
-      return;
-    }
+    if (!query.trim()) return;
 
-    setLoading(true);
-    setError('');
     apiSearchServers(query, page, 20, sortBy, sortOrder)
       .then((res) => {
         setData(res.data);
         setMeta(res.meta);
+        setError('');
+        setLoading(false);
       })
-      .catch((err) => setError(err.message ?? 'Failed to search servers'))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        setError(err.message ?? 'Failed to search servers');
+        setLoading(false);
+      });
   }, [query, page, sortBy, sortOrder]);
 
   const handleSearch = (e: React.FormEvent) => {

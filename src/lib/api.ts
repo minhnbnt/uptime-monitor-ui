@@ -9,6 +9,7 @@ import type {
   RegisterRequest,
   LoginRequest,
   RefreshTokenRequest,
+  SessionListResponse,
   UserProfile,
   ServerObject,
   ServerWithOntime,
@@ -235,6 +236,19 @@ export function apiLogout(data: RefreshTokenRequest): Promise<void> {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+
+export function apiListSessions(page = 1, perPage = 20): Promise<SessionListResponse> {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  return request<SessionListResponse>(`/api/v1/auth/sessions?${params}`);
+}
+
+export function apiCreateAgentSession(): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/v1/auth/sessions/ping', { method: 'POST' });
+}
+
+export function apiRevokeSession(id: string): Promise<void> {
+  return request<void>(`/api/v1/auth/sessions/${id}`, { method: 'DELETE' });
 }
 
 export function apiListServers(page = 1, perPage = 20): Promise<ServerListResponse> {

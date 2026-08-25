@@ -101,6 +101,19 @@ export interface RefreshTokenRequest {
   refresh_token: string;
 }
 
+export interface SessionInfo {
+  id: string;
+  scopes: string[];
+  current: boolean;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface SessionListResponse {
+  data: SessionInfo[];
+  meta: PaginationMeta;
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;

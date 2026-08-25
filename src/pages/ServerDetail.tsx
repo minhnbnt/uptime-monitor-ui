@@ -17,12 +17,11 @@ export default function ServerDetail() {
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    setError('');
 
     apiGetServer(Number(id))
       .then((res) => {
         setServer(res.data);
+        setError('');
       })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
