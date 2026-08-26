@@ -66,26 +66,33 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
           >
             Pull
           </button>
-          <div className="relative">
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-lg bg-surface-elevated px-4 py-2 text-sm font-medium text-slate-500 opacity-60"
-            >
-              Push
-            </button>
-            <span className="absolute -top-2 -right-2 rounded-full bg-warning/20 px-1.5 py-0.5 text-[10px] font-medium text-warning">
-              Soon
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => onMethodChange('push')}
+            className={`cursor-pointer rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+              method === 'push'
+                ? 'bg-success text-white'
+                : 'bg-surface-elevated text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+            }`}
+          >
+            Push
+          </button>
         </div>
         <p className="mt-1 text-xs text-slate-500">
           {method === 'push'
-            ? 'Server pushes status data to a callback URL'
+            ? 'Your agent pushes status updates to the ping API — no endpoint needed. Follow the setup guide below.'
             : 'Monitor pulls data from your endpoint periodically'}
         </p>
       </div>
 
+      {method === 'push' && (
+        <p className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">
+          A server in push mode has no endpoint config — see the instructions below to get an API key and start pushing.
+        </p>
+      )}
+
+      {method === 'pull' && (
+      <>
       {/* Endpoint URL */}
       <div>
         <label htmlFor="ep-url" className="mb-1.5 block text-sm font-medium text-slate-300">
@@ -243,6 +250,8 @@ export default function EndpointForm({ method, endpoint, onMethodChange, onEndpo
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

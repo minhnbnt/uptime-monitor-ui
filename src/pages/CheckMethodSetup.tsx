@@ -16,6 +16,73 @@ function defaultEndpoint(): Endpoint {
   };
 }
 
+function PushInstructions({ serverId }: { serverId: number }) {
+  const apiUrl = `${window.location.origin}/api/v1/ping/events`;
+  const curl = [
+    `curl -X POST ${apiUrl} \\`,
+    `  -H "Authorization: Bearer <AGENT_TOKEN>" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d '[{"id": ${serverId}, "status": "ON"}]'`,
+  ].join('\n');
+  const sampleResponse = [
+    '{',
+    '  "next_time": 1756200000000,',
+    '  "stale_at": 1756200030000,',
+    '  "accepted": [' + serverId + '],',
+    '  "errors": []',
+    '}',
+  ].join('\n');
+
+  return (
+    <div className="space-y-4 rounded-lg border border-border bg-surface-elevated p-5">
+      <h2 className="text-sm font-semibold text-text-primary">Push setup guide</h2>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-300">1. Get an agent API key</p>
+        <p className="text-sm text-slate-400">
+          Go to{' '}
+          <Link to="/settings/sessions" className="text-success hover:underline">
+            Settings → Sessions
+          </Link>
+          , click <span className="text-slate-200">Create Agent Session</span> and copy the token it shows.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-300">2. Push a status update</p>
+        <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-xs leading-relaxed text-slate-300">
+          <code>{curl}</code>
+        </pre>
+        <button
+          type="button"
+          onClick={() => navigator.clipboard?.writeText(curl)}
+          className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors duration-200 hover:bg-slate-700 hover:text-slate-100"
+        >
+          Copy command
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-300">3. Example response</p>
+        <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-xs leading-relaxed text-slate-300">
+          <code>{sampleResponse}</code>
+        </pre>
+        <ul className="list-inside list-disc space-y-1 text-xs text-slate-500">
+          <li><span className="text-slate-300">next_time</span> — unix ms when this session may push again.</li>
+          <li><span className="text-slate-300">stale_at</span> — push again before this or the servers go UNKNOWN.</li>
+          <li><span className="text-slate-300">accepted</span> / <span className="text-slate-300">errors</span> — which server IDs were recorded and which failed (with a reason).</li>
+        </ul>
+      </div>
+
+      <ul className="list-inside list-disc space-y-1 text-xs text-slate-500">
+        <li><span className="text-slate-300">status</span> accepts ON or OFF only; anything else is rejected per item.</li>
+        <li>One batch per 30s window per session — pushing earlier returns 429 with the next allowed time.</li>
+        <li>If nothing arrives before <span className="text-slate-300">stale_at</span> (returned in each response), the servers go UNKNOWN until you push again.</li>
+      </ul>
+    </div>
+  );
+}
+
 export default function CheckMethodSetup() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,6 +100,9 @@ export default function CheckMethodSetup() {
         setServer(res.data);
         if (res.data.endpoint) {
           setEndpoint(res.data.endpoint);
+          setMethod('pull');
+        } else {
+          setMethod('push');
         }
       })
       .catch((err) => setError(err.message ?? 'Failed to load server'))
@@ -45,7 +115,8 @@ export default function CheckMethodSetup() {
     setError('');
     setSaving(true);
     try {
-      await apiSetCheckMethod(server.id, { method, endpoint });
+      const body = method === 'push' ? { method } : { method, endpoint };
+      await apiSetCheckMethod(server.id, body);
       navigate(`/servers/${server.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -114,6 +185,8 @@ export default function CheckMethodSetup() {
           onEndpointChange={setEndpoint}
         />
 
+        {method === 'push' && <PushInstructions serverId={server.id} />}
+
         <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
           <div className="flex gap-3">
             <Link
@@ -124,7 +197,7 @@ export default function CheckMethodSetup() {
             </Link>
             <button
               type="submit"
-              disabled={saving || !endpoint.url.trim()}
+              disabled={saving || (method === 'pull' && !endpoint.url.trim())}
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <LoadingSpinner size="sm" /> : null}

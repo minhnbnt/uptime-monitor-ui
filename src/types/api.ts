@@ -48,12 +48,14 @@ export interface Endpoint {
 
 export interface SetCheckMethodRequest {
   method: CheckMethodType;
-  endpoint: Endpoint;
+  endpoint?: Endpoint;
 }
 
 export interface OntimeStats {
   date: string;
   stats: number;
+  has_data: boolean;
+  unknown_seconds: number;
 }
 
 export interface ServerWithOntime {
