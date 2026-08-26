@@ -8,9 +8,10 @@ import OntimeChart from '../components/OntimeChart';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-function avg(stats: { stats: number }[]) {
-  if (!stats || stats.length === 0) return null;
-  return stats.reduce((s, d) => s + d.stats, 0) / stats.length;
+function avg(stats: { stats: number; has_data: boolean }[]) {
+  const valid = stats.filter((d) => d.has_data !== false);
+  if (valid.length === 0) return null;
+  return valid.reduce((s, d) => s + d.stats, 0) / valid.length;
 }
 
 export default function Dashboard() {
