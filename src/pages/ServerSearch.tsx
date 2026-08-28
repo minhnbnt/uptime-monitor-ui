@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { apiSearchServers, toUiStatus } from '../lib/api';
+import { apiSearchServers } from '../lib/api';
+import { useServerStatuses } from '../lib/useServerStatuses';
 import type { ServerObject, PaginationMeta } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
@@ -36,6 +37,8 @@ export default function ServerSearch() {
         setLoading(false);
       });
   }, [query, page, sortBy, sortOrder]);
+
+  const statuses = useServerStatuses(data.map((s) => s.id));
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +210,7 @@ export default function ServerSearch() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <StatusBadge status={toUiStatus(server.monitor_status)} />
+                    <StatusBadge status={statuses[server.id] ?? 'unknown'} />
                     <span className="text-xs text-slate-500">
                       {new Date(server.created_at).toLocaleDateString()}
                     </span>

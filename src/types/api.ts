@@ -68,6 +68,15 @@ export interface ServerOntimeListResponse {
   meta: PaginationMeta;
 }
 
+export interface ServerStatusItem {
+  server_id: number;
+  status: string;
+}
+
+export interface ServerStatusesResponse {
+  data: ServerStatusItem[];
+}
+
 export interface ServerCountResponse {
   total: number;
   online: number;

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiDeleteServer, toUiStatus } from '../lib/api';
+import { apiGetServer, apiDeleteServer, apiListServersOntimeByIds } from '../lib/api';
 import { ApiError } from '../lib/api';
-import type { ServerObject } from '../types/api';
+import { useServerStatuses } from '../lib/useServerStatuses';
+import type { ServerObject, OntimeStats } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -14,6 +15,7 @@ export default function ServerDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [ontimeStats, setOntimeStats] = useState<OntimeStats[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -32,6 +34,19 @@ export default function ServerDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    apiListServersOntimeByIds([Number(id)])
+      .then((res) => {
+        const found = res.data.find((d) => d.server_id === Number(id));
+        setOntimeStats(found?.ontime_stats ?? []);
+      })
+      .catch(() => setOntimeStats([]));
+  }, [id]);
+
+  const statuses = useServerStatuses(id ? [Number(id)] : []);
 
   const handleDelete = async () => {
     if (!server || !window.confirm(`Delete server "${server.name}"? This action cannot be undone.`)) return;
@@ -122,7 +137,7 @@ export default function ServerDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-text-primary">{server.name}</h1>
-              <StatusBadge status={toUiStatus(server.monitor_status)} />
+              <StatusBadge status={statuses[server.id] ?? 'unknown'} />
             </div>
             <p className="mt-1 text-sm text-slate-500">ID: {server.id}</p>
           </div>
@@ -176,7 +191,7 @@ export default function ServerDetail() {
       {/* Ontime chart */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <h2 className="mb-4 text-lg font-semibold text-text-primary">Uptime (Last 30 Days)</h2>
-        <OntimeChart data={server.ontime_stats ?? []} height={250} />
+        <OntimeChart data={ontimeStats} height={250} />
       </div>
     </div>
   );

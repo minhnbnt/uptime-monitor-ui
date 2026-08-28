@@ -14,6 +14,7 @@ import type {
   ServerObject,
   ServerWithOntime,
   ServerCountResponse,
+  ServerStatusesResponse,
   TestEndpointRequest,
   TestEndpointResponse,
   SearchServersResponse,
@@ -25,7 +26,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
 export type UiStatus = 'online' | 'offline' | 'unknown';
 
-export function toUiStatus(status: ServerObject['monitor_status']): UiStatus {
+export function toUiStatus(status: string | null | undefined): UiStatus {
   if (status === 'ON') return 'online';
   if (status === 'OFF') return 'offline';
   return 'unknown';
@@ -288,6 +289,20 @@ export function apiSetCheckMethod(id: number, data: SetCheckMethodRequest): Prom
 export function apiListServersOntime(page = 1, perPage = 20): Promise<ServerOntimeListResponse> {
   const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
   return request<ServerOntimeListResponse>(`/api/v1/servers/ontime?${params}`);
+}
+
+export function apiListServersOntimeByIds(ids: number[]): Promise<ServerOntimeListResponse> {
+  return request<ServerOntimeListResponse>('/api/v1/servers/ontime/by-ids', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function apiGetServersStatuses(ids: number[]): Promise<ServerStatusesResponse> {
+  return request<ServerStatusesResponse>('/api/v1/servers/ontime/statuses', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
 }
 
 export function apiCountServers(): Promise<ServerCountResponse> {

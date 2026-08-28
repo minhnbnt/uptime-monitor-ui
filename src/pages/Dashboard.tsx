@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiListServers, apiListServersOntime, apiCountServers, toUiStatus } from '../lib/api';
+import { apiListServers, apiListServersOntimeByIds, apiCountServers } from '../lib/api';
+import { useServerStatuses } from '../lib/useServerStatuses';
 import type { ServerObject, ServerWithOntime, ServerOntimeListResponse, PaginationMeta, ServerCountResponse } from '../types/api';
 
 import StatusBadge from '../components/StatusBadge';
@@ -37,7 +38,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (servers.length === 0) return;
-    apiListServersOntime(page, 20)
+    apiListServersOntimeByIds(servers.map((s) => s.id))
       .then((res: ServerOntimeListResponse) => {
         const map: Record<number, ServerWithOntime['ontime_stats']> = {};
         for (const o of res.data) map[o.server_id] = o.ontime_stats;
@@ -45,6 +46,8 @@ export default function Dashboard() {
       })
       .catch(() => {});
   }, [servers, page]);
+
+  const statuses = useServerStatuses(servers.map((s) => s.id));
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -143,7 +146,7 @@ export default function Dashboard() {
                         <h3 className="truncate text-lg font-semibold text-text-primary">
                           {server.name}
                         </h3>
-                        <StatusBadge status={toUiStatus(server.monitor_status)} />
+                        <StatusBadge status={statuses[server.id] ?? 'unknown'} />
                       </div>
                       {server.endpoint && (
                         <p className="mt-1 truncate text-sm text-slate-500">
