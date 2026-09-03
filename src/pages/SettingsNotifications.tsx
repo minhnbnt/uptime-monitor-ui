@@ -1,76 +1,55 @@
-import { useEffect, useState } from 'react';
-import { apiGetNotificationConfig, apiUpdateNotificationConfig, apiSendReport } from '../lib/api';
+import { useState, useRef } from 'react';
+import { useNotificationConfig, useUpdateNotificationConfig, useSendReport } from '../lib/queries';
 import type { NotificationConfig } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function SettingsNotifications() {
+  const configQuery = useNotificationConfig();
+  const updateMutation = useUpdateNotificationConfig();
+  const sendReportMutation = useSendReport();
+
   const [config, setConfig] = useState<NotificationConfig>({
     from_date: '',
     to_date: '',
     digest_time: '08:00',
   });
-  const [loading, setLoading] = useState(true);
-  const [configReady, setConfigReady] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [sendingReport, setSendingReport] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [reportError, setReportError] = useState('');
   const [reportSuccess, setReportSuccess] = useState('');
 
-  useEffect(() => {
-    apiGetNotificationConfig()
-      .then((res) => {
-        setConfig(res);
-        setConfigReady(true);
-        setError('');
-      })
-      .catch((err) => {
-        if (err.status !== 404) {
-          setError(err.message ?? 'Failed to load notification settings');
-        } else {
-          setError('');
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const initialized = useRef(false);
+  if (configQuery.data && !initialized.current) {
+    setConfig(configQuery.data);
+    initialized.current = true;
+  }
+  const configReady = initialized.current;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setSuccess('');
-    setSaving(true);
-    try {
-      await apiUpdateNotificationConfig(config);
-      setSuccess('Notification settings saved successfully');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError((err instanceof Error) ? err.message : 'Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
+    updateMutation.mutate(config, {
+      onSuccess: () => {
+        setSuccess('Notification settings saved successfully');
+        setTimeout(() => setSuccess(''), 3000);
+      },
+    });
   };
 
   const updateField = (field: keyof NotificationConfig, value: string) => {
     setConfig({ ...config, [field]: value });
   };
 
-  const handleSendReport = async () => {
-    setReportError('');
+  const handleSendReport = () => {
     setReportSuccess('');
-    setSendingReport(true);
-    try {
-      await apiSendReport();
-      setReportSuccess('Report sent successfully! Check your email.');
-      setTimeout(() => setReportSuccess(''), 5000);
-    } catch (err) {
-      setReportError((err instanceof Error) ? err.message : 'Failed to send report');
-    } finally {
-      setSendingReport(false);
-    }
+    sendReportMutation.reset();
+    sendReportMutation.mutate(undefined, {
+      onSuccess: () => {
+        setReportSuccess('Report sent successfully! Check your email.');
+        setTimeout(() => setReportSuccess(''), 5000);
+      },
+    });
   };
 
-  if (loading) {
+  if (configQuery.isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -88,24 +67,20 @@ export default function SettingsNotifications() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-border bg-surface p-6">
-        {error && (
+        {updateMutation.error && (
           <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
+            {updateMutation.error instanceof Error ? updateMutation.error.message : 'Failed to save settings'}
           </div>
         )}
 
         {success && (
-          <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">
-            {success}
-          </div>
+          <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{success}</div>
         )}
 
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="from_date" className="mb-2 block text-sm font-medium text-slate-300">
-                From Date
-              </label>
+              <label htmlFor="from_date" className="mb-2 block text-sm font-medium text-slate-300">From Date</label>
               <input
                 id="from_date"
                 type="date"
@@ -113,15 +88,10 @@ export default function SettingsNotifications() {
                 onChange={(e) => updateField('from_date', e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
               />
-              <p className="mt-2 text-xs text-slate-400">
-                Start date for the daily digest range
-              </p>
+              <p className="mt-2 text-xs text-slate-400">Start date for the daily digest range</p>
             </div>
-
             <div>
-              <label htmlFor="to_date" className="mb-2 block text-sm font-medium text-slate-300">
-                To Date
-              </label>
+              <label htmlFor="to_date" className="mb-2 block text-sm font-medium text-slate-300">To Date</label>
               <input
                 id="to_date"
                 type="date"
@@ -129,16 +99,12 @@ export default function SettingsNotifications() {
                 onChange={(e) => updateField('to_date', e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
               />
-              <p className="mt-2 text-xs text-slate-400">
-                End date for the daily digest range
-              </p>
+              <p className="mt-2 text-xs text-slate-400">End date for the daily digest range</p>
             </div>
           </div>
 
           <div>
-            <label htmlFor="digest_time" className="mb-2 block text-sm font-medium text-slate-300">
-              Digest Time
-            </label>
+            <label htmlFor="digest_time" className="mb-2 block text-sm font-medium text-slate-300">Digest Time</label>
             <input
               id="digest_time"
               type="time"
@@ -146,29 +112,24 @@ export default function SettingsNotifications() {
               onChange={(e) => updateField('digest_time', e.target.value)}
               className="w-full rounded-lg border border-border bg-surface-elevated px-3.5 py-2.5 text-sm text-text-primary transition-colors duration-200 focus:border-success focus:outline-none focus:ring-1 focus:ring-success"
             />
-            <p className="mt-2 text-xs text-slate-400">
-              Time of day to send the daily digest email
-            </p>
+            <p className="mt-2 text-xs text-slate-400">Time of day to send the daily digest email</p>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-700">
           <button
             type="reset"
-            onClick={() => {
-              setError('');
-              setSuccess('');
-            }}
+            onClick={() => { setSuccess(''); }}
             className="cursor-pointer rounded-lg px-4 py-2.5 text-sm font-medium text-slate-400 transition-colors duration-200 hover:text-slate-200"
           >
             Reset
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={updateMutation.isPending}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? <LoadingSpinner size="sm" /> : null}
+            {updateMutation.isPending ? <LoadingSpinner size="sm" /> : null}
             Save Settings
           </button>
         </div>
@@ -176,12 +137,12 @@ export default function SettingsNotifications() {
 
       <div className="rounded-xl border border-border bg-surface p-6">
         <h3 className="text-sm font-semibold text-text-primary">Send Report Now</h3>
-        <p className="mt-1 text-xs text-slate-400">
-          Trigger a one-time report email immediately
-        </p>
+        <p className="mt-1 text-xs text-slate-400">Trigger a one-time report email immediately</p>
 
-        {reportError && (
-          <div className="mt-3 rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">{reportError}</div>
+        {sendReportMutation.error && (
+          <div className="mt-3 rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
+            {sendReportMutation.error instanceof Error ? sendReportMutation.error.message : 'Failed to send report'}
+          </div>
         )}
         {reportSuccess && (
           <div className="mt-3 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{reportSuccess}</div>
@@ -195,11 +156,11 @@ export default function SettingsNotifications() {
         <button
           type="button"
           onClick={handleSendReport}
-          disabled={sendingReport || !configReady}
+          disabled={sendReportMutation.isPending || !configReady}
           className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {sendingReport ? <LoadingSpinner size="sm" /> : null}
-          {sendingReport ? 'Sending...' : 'Send Report Now'}
+          {sendReportMutation.isPending ? <LoadingSpinner size="sm" /> : null}
+          {sendReportMutation.isPending ? 'Sending...' : 'Send Report Now'}
         </button>
       </div>
 

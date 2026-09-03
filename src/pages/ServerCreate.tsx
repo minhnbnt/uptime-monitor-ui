@@ -1,32 +1,24 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { apiCreateServer } from '../lib/api';
+import { useCreateServer } from '../lib/queries';
 import { ApiError } from '../lib/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ServerCreate() {
   const navigate = useNavigate();
+  const createMutation = useCreateServer();
   const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    setError('');
-    setLoading(true);
-    try {
-      const res = await apiCreateServer({ name: name.trim() });
-      navigate(`/servers/${res.data.id}`);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to create server');
-      }
-    } finally {
-      setLoading(false);
-    }
+    createMutation.mutate(
+      { name: name.trim() },
+      {
+        onSuccess: (res) => navigate(`/servers/${res.data.id}`),
+        onError: () => {},
+      },
+    );
   };
 
   return (
@@ -49,9 +41,11 @@ export default function ServerCreate() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border bg-surface p-6">
-        {error && (
+        {createMutation.error && (
           <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
+            {createMutation.error instanceof ApiError
+              ? createMutation.error.message
+              : 'Failed to create server'}
           </div>
         )}
 
@@ -82,10 +76,10 @@ export default function ServerCreate() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !name.trim()}
+            disabled={createMutation.isPending || !name.trim()}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? <LoadingSpinner size="sm" /> : null}
+            {createMutation.isPending ? <LoadingSpinner size="sm" /> : null}
             Create Server
           </button>
         </div>

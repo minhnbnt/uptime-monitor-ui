@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiListServers, apiListServersOntimeByIds, apiCountServers } from '../lib/api';
-import { useServerStatuses } from '../lib/useServerStatuses';
-import type { ServerObject, ServerWithOntime, ServerOntimeListResponse, PaginationMeta, ServerCountResponse } from '../types/api';
+import { useServers, useServerCount, useServerOntime, useServerStatuses } from '../lib/queries';
+import type { OntimeStats } from '../types/api';
 
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
@@ -16,42 +15,28 @@ function avg(stats: { stats: number; has_data: boolean }[]) {
 }
 
 export default function Dashboard() {
-  const [servers, setServers] = useState<ServerObject[]>([]);
-  const [ontime, setOntime] = useState<Record<number, ServerWithOntime['ontime_stats']>>({});
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, per_page: 20, total: 0 });
-  const [count, setCount] = useState<ServerCountResponse>({ total: 0, online: 0, offline: 0 });
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    Promise.all([apiListServers(page, 20), apiCountServers()])
-      .then(([res, counts]) => {
-        setServers(res.data);
-        setMeta(res.meta);
-        setCount(counts);
-        setError('');
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load servers'))
-      .finally(() => setLoading(false));
-  }, [page]);
+  const serversQuery = useServers(page, 20);
+  const countQuery = useServerCount();
 
-  useEffect(() => {
-    if (servers.length === 0) return;
-    apiListServersOntimeByIds(servers.map((s) => s.id))
-      .then((res: ServerOntimeListResponse) => {
-        const map: Record<number, ServerWithOntime['ontime_stats']> = {};
-        for (const o of res.data) map[o.server_id] = o.ontime_stats;
-        setOntime(map);
-      })
-      .catch(() => {});
-  }, [servers, page]);
+  const servers = serversQuery.data?.data ?? [];
+  const meta = serversQuery.data?.meta ?? { page: 1, per_page: 20, total: 0 };
+  const count = countQuery.data ?? { total: 0, online: 0, offline: 0 };
+
+  const ontimeQuery = useServerOntime(servers.map((s) => s.id));
+  const ontimeMap: Record<number, OntimeStats[]> = {};
+  if (ontimeQuery.data) {
+    for (const o of ontimeQuery.data.data) ontimeMap[o.server_id] = o.ontime_stats;
+  }
 
   const statuses = useServerStatuses(servers.map((s) => s.id));
 
+  const loading = serversQuery.isLoading || countQuery.isLoading;
+  const error = serversQuery.error?.message || countQuery.error?.message;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
@@ -103,7 +88,6 @@ export default function Dashboard() {
 
       {!loading && !error && servers.length > 0 && (
         <>
-          {/* Summary cards */}
           <div className="grid gap-4 sm:grid-cols-4">
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Servers</p>
@@ -111,15 +95,11 @@ export default function Dashboard() {
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Online</p>
-              <p className="mt-1 text-2xl font-bold text-success">
-                {count.online}
-              </p>
+              <p className="mt-1 text-2xl font-bold text-success">{count.online}</p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Offline</p>
-              <p className="mt-1 text-2xl font-bold text-danger">
-                {count.offline}
-              </p>
+              <p className="mt-1 text-2xl font-bold text-danger">{count.offline}</p>
             </div>
             <div className="rounded-xl border border-border bg-surface p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Unknown</p>
@@ -129,10 +109,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Server cards */}
           <div className="space-y-4">
             {servers.map((server) => {
-              const stats = ontime[server.id] ?? [];
+              const stats = ontimeMap[server.id] ?? [];
               const avgUptime = avg(stats);
               return (
                 <Link
@@ -143,22 +122,16 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="truncate text-lg font-semibold text-text-primary">
-                          {server.name}
-                        </h3>
+                        <h3 className="truncate text-lg font-semibold text-text-primary">{server.name}</h3>
                         <StatusBadge status={statuses[server.id] ?? 'unknown'} />
                       </div>
                       {server.endpoint && (
-                        <p className="mt-1 truncate text-sm text-slate-500">
-                          {server.endpoint.url}
-                        </p>
+                        <p className="mt-1 truncate text-sm text-slate-500">{server.endpoint.url}</p>
                       )}
                     </div>
                     {avgUptime !== null && (
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-success">
-                          {avgUptime.toFixed(1)}%
-                        </p>
+                        <p className="text-2xl font-bold text-success">{avgUptime.toFixed(1)}%</p>
                         <p className="text-xs text-slate-500">30-day avg</p>
                       </div>
                     )}

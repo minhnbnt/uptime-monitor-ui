@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { apiSearchServers } from '../lib/api';
-import { useServerStatuses } from '../lib/useServerStatuses';
-import type { ServerObject, PaginationMeta } from '../types/api';
+import { useSearchServers, useServerStatuses } from '../lib/queries';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -17,48 +15,21 @@ export default function ServerSearch() {
   const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get('sort_order') as SortOrder) || 'asc');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
 
-  const [data, setData] = useState<ServerObject[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, per_page: 20, total: 0 });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!query.trim()) return;
-
-    apiSearchServers(query, page, 20, sortBy, sortOrder)
-      .then((res) => {
-        setData(res.data);
-        setMeta(res.meta);
-        setError('');
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message ?? 'Failed to search servers');
-        setLoading(false);
-      });
-  }, [query, page, sortBy, sortOrder]);
+  const searchQuery = useSearchServers(query, page, 20, sortBy, sortOrder);
+  const data = searchQuery.data?.data ?? [];
+  const meta = searchQuery.data?.meta ?? { page: 1, per_page: 20, total: 0 };
 
   const statuses = useServerStatuses(data.map((s) => s.id));
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    setSearchParams({
-      q: query,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-      page: '1',
-    });
+    setSearchParams({ q: query, sort_by: sortBy, sort_order: sortOrder, page: '1' });
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    setSearchParams({
-      q: query,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-      page: String(newPage),
-    });
+    setSearchParams({ q: query, sort_by: sortBy, sort_order: sortOrder, page: String(newPage) });
   };
 
   const handleSortChange = (field: SortBy) => {
@@ -71,9 +42,11 @@ export default function ServerSearch() {
     setPage(1);
   };
 
+  const loading = searchQuery.isLoading;
+  const error = searchQuery.error?.message;
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Search Servers</h1>
         <p className="mt-1 text-sm text-slate-400">
@@ -81,7 +54,6 @@ export default function ServerSearch() {
         </p>
       </div>
 
-      {/* Search Form */}
       <form onSubmit={handleSearch} className="space-y-4 rounded-xl border border-border bg-surface p-6">
         <div>
           <label htmlFor="query" className="mb-2 block text-sm font-medium text-slate-300">
@@ -107,7 +79,6 @@ export default function ServerSearch() {
           </div>
         </div>
 
-        {/* Sort Controls */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="sort-by" className="mb-2 block text-sm font-medium text-slate-300">
@@ -150,9 +121,7 @@ export default function ServerSearch() {
       </form>
 
       {error && (
-        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
+        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
       {!query.trim() && (
@@ -183,14 +152,12 @@ export default function ServerSearch() {
 
       {query.trim() && !loading && !error && data.length > 0 && (
         <>
-          {/* Results info */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">
               Found <span className="font-semibold text-text-primary">{meta.total}</span> server{meta.total !== 1 ? 's' : ''}
             </p>
           </div>
 
-          {/* Results list */}
           <div className="space-y-3">
             {data.map((server) => (
               <Link
@@ -200,13 +167,9 @@ export default function ServerSearch() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-semibold text-text-primary">
-                      {server.name}
-                    </h3>
+                    <h3 className="truncate text-base font-semibold text-text-primary">{server.name}</h3>
                     {server.endpoint && (
-                      <p className="mt-1 truncate text-xs text-slate-500">
-                        {server.endpoint.url}
-                      </p>
+                      <p className="mt-1 truncate text-xs text-slate-500">{server.endpoint.url}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-3">

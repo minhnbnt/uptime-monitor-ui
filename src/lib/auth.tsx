@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { LoginRequest, RegisterRequest, UserProfile } from '../types/api';
 import {
   apiLogin,
@@ -9,7 +10,6 @@ import {
   clearTokens,
   setStoredUser,
   getRefreshToken,
-  attemptRefresh,
 } from './api';
 
 interface AuthContextType {
@@ -19,84 +19,82 @@ interface AuthContextType {
   login: (data: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
-  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const AUTH_KEY = ['auth', 'user'] as const;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const qc = useQueryClient();
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  useEffect(() => {
-    initAuth().then((u) => {
-      if (u) setUser(u);
-      setIsLoading(false);
-    });
-  }, []);
+  const userQuery = useQuery({
+    queryKey: AUTH_KEY,
+    queryFn: () => initAuth(),
+    staleTime: Infinity,
+    retry: false,
+  });
 
   useEffect(() => {
     const handler = () => {
-      setUser(null);
+      qc.setQueryData(AUTH_KEY, null);
       setSessionExpired(true);
     };
     window.addEventListener('session-expired', handler);
     return () => window.removeEventListener('session-expired', handler);
-  }, []);
+  }, [qc]);
 
-  const login = useCallback(async (data: LoginRequest) => {
-    setIsLoading(true);
-    setSessionExpired(false);
-    try {
-      const res = await apiLogin(data);
+  const loginMutation = useMutation({
+    mutationFn: (data: LoginRequest) => apiLogin(data),
+    onSuccess: (res) => {
       setTokens(res.access_token, res.refresh_token);
       setStoredUser(res.user);
-      setUser(res.user);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      qc.setQueryData(AUTH_KEY, res.user);
+      setSessionExpired(false);
+    },
+  });
 
-  const register = useCallback(async (data: RegisterRequest) => {
-    setIsLoading(true);
-    setSessionExpired(false);
-    try {
-      const res = await apiRegister(data);
+  const registerMutation = useMutation({
+    mutationFn: (data: RegisterRequest) => apiRegister(data),
+    onSuccess: (res) => {
       setTokens(res.access_token, res.refresh_token);
       setStoredUser(res.user);
-      setUser(res.user);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      qc.setQueryData(AUTH_KEY, res.user);
+      setSessionExpired(false);
+    },
+  });
 
-  const logout = useCallback(async () => {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        await apiLogout({ refresh_token: refreshToken });
-      } catch {
-        // ignore logout errors
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          await apiLogout({ refresh_token: refreshToken });
+        } catch {
+          // ignore
+        }
       }
-    }
-    clearTokens();
-    setUser(null);
-  }, []);
+      clearTokens();
+    },
+    onSuccess: () => {
+      qc.setQueryData(AUTH_KEY, null);
+    },
+  });
 
-  const refreshTokenFn = useCallback(async () => {
-    const success = await attemptRefresh();
-    if (success) {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser) as UserProfile);
-      }
-    }
-    return success;
-  }, []);
+  const user = userQuery.data ?? null;
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, sessionExpired, login, register, logout, refreshToken: refreshTokenFn }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading: userQuery.isLoading || loginMutation.isPending || registerMutation.isPending,
+        sessionExpired,
+        login: async (data) => { await loginMutation.mutateAsync(data); },
+        register: async (data) => { await registerMutation.mutateAsync(data); },
+        logout: () => logoutMutation.mutateAsync(),
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,3 +1,4 @@
+import Cookies from 'js-cookie';
 import type {
   AuthResponse,
   ServerListResponse,
@@ -26,6 +27,8 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
+const REFRESH_COOKIE = 'refresh_token';
+
 export type UiStatus = 'online' | 'offline' | 'unknown';
 
 export function toUiStatus(status: string | null | undefined): UiStatus {
@@ -53,61 +56,46 @@ export class SessionExpiredError extends Error {
   }
 }
 
-function getItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function setItem(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // ignore
-  }
-}
-
-function removeItem(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
-}
+// Access token — in-memory only
+let accessToken: string | null = null;
 
 export function getAccessToken(): string | null {
-  return getItem('access_token');
+  return accessToken;
 }
 
 export function getRefreshToken(): string | null {
-  return getItem('refresh_token');
+  return Cookies.get(REFRESH_COOKIE) ?? null;
 }
 
 export function setTokens(access: string, refresh: string) {
-  setItem('access_token', access);
-  setItem('refresh_token', refresh);
+  accessToken = access;
+  Cookies.set(REFRESH_COOKIE, refresh, {
+    secure: true,
+    sameSite: 'strict',
+    path: '/',
+  });
 }
 
 export function clearTokens() {
-  removeItem('access_token');
-  removeItem('refresh_token');
-  removeItem('user');
+  accessToken = null;
+  Cookies.remove(REFRESH_COOKIE);
 }
 
 export function getStoredUser(): UserProfile | null {
-  const raw = getItem('user');
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as UserProfile;
+    const raw = sessionStorage.getItem('user');
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
   } catch {
     return null;
   }
 }
 
 export function setStoredUser(user: UserProfile) {
-  setItem('user', JSON.stringify(user));
+  try {
+    sessionStorage.setItem('user', JSON.stringify(user));
+  } catch {
+    // ignore
+  }
 }
 
 export async function initAuth(): Promise<UserProfile | null> {
@@ -175,12 +163,10 @@ async function request<T>(
   const token = getAccessToken();
   const headers: Record<string, string> = {};
 
-  // Only set Content-Type if body is not FormData
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Merge with provided headers
   const providedHeaders = options.headers as Record<string, string> | undefined;
   if (providedHeaders) {
     Object.assign(headers, providedHeaders);

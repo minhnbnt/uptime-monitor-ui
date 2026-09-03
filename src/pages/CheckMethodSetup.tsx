@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiSetCheckMethod } from '../lib/api';
+import { useServer, useSetCheckMethod } from '../lib/queries';
 import { ApiError } from '../lib/api';
-import type { ServerObject, CheckMethodType, Endpoint, HttpMethod } from '../types/api';
+import type { CheckMethodType, Endpoint, HttpMethod } from '../types/api';
 import EndpointForm from '../components/EndpointForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -86,50 +86,35 @@ function PushInstructions({ serverId }: { serverId: number }) {
 export default function CheckMethodSetup() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [server, setServer] = useState<ServerObject | null>(null);
+  const serverId = id ? Number(id) : 0;
+
+  const serverQuery = useServer(serverId);
+  const setCheckMethodMutation = useSetCheckMethod(serverId);
+
+  const server = serverQuery.data?.data;
   const [method, setMethod] = useState<CheckMethodType>('pull');
   const [endpoint, setEndpoint] = useState<Endpoint>(defaultEndpoint);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const initialized = useRef(false);
+  if (server && !initialized.current) {
+    if (server.endpoint) {
+      setEndpoint(server.endpoint);
+      setMethod('pull');
+    } else {
+      setMethod('push');
+    }
+    initialized.current = true;
+  }
 
-  useEffect(() => {
-    if (!id) return;
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-        if (res.data.endpoint) {
-          setEndpoint(res.data.endpoint);
-          setMethod('pull');
-        } else {
-          setMethod('push');
-        }
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load server'))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!server) return;
-    setError('');
-    setSaving(true);
-    try {
-      const body = method === 'push' ? { method } : { method, endpoint };
-      await apiSetCheckMethod(server.id, body);
-      navigate(`/servers/${server.id}`);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to update check method');
-      }
-    } finally {
-      setSaving(false);
-    }
+    const body = method === 'push' ? { method } : { method, endpoint };
+    setCheckMethodMutation.mutate(body, {
+      onSuccess: () => navigate(`/servers/${server.id}`),
+    });
   };
 
-  if (loading) {
+  if (serverQuery.isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -141,7 +126,7 @@ export default function CheckMethodSetup() {
     return (
       <div className="mx-auto max-w-lg text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {serverQuery.error instanceof ApiError ? serverQuery.error.message : 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -172,9 +157,11 @@ export default function CheckMethodSetup() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-border bg-surface p-6">
-        {error && (
+        {setCheckMethodMutation.error && (
           <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
+            {setCheckMethodMutation.error instanceof ApiError
+              ? setCheckMethodMutation.error.message
+              : 'Failed to update check method'}
           </div>
         )}
 
@@ -197,10 +184,10 @@ export default function CheckMethodSetup() {
             </Link>
             <button
               type="submit"
-              disabled={saving || (method === 'pull' && !endpoint.url.trim())}
+              disabled={setCheckMethodMutation.isPending || (method === 'pull' && !endpoint.url.trim())}
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? <LoadingSpinner size="sm" /> : null}
+              {setCheckMethodMutation.isPending ? <LoadingSpinner size="sm" /> : null}
               Save Configuration
             </button>
           </div>

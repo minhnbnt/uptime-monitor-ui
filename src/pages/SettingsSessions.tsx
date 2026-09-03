@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { apiListSessions, apiCreateAgentSession, apiRevokeSession } from '../lib/api';
-import type { SessionInfo, SessionListResponse } from '../types/api';
+import { useState } from 'react';
+import { useSessions, useRevokeSession, useCreateAgentSession } from '../lib/queries';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Pagination from '../components/Pagination';
-
-function errMsg(err: unknown, fallback: string): string {
-  return (err instanceof Error) ? err.message : fallback;
-}
 
 const SCOPE_LABELS: Record<string, string> = {
   app: 'Web',
@@ -21,78 +16,38 @@ function formatDate(value: string): string {
 }
 
 export default function SettingsSessions() {
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [meta, setMeta] = useState({ page: 1, per_page: 20, total: 0 });
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [agentToken, setAgentToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [success, setSuccess] = useState('');
 
-  const apply = useCallback((res: SessionListResponse) => {
-    setSessions(res.data);
-    setMeta(res.meta);
-    setPage(res.meta.page);
-    setError('');
-  }, []);
+  const sessionsQuery = useSessions(page);
+  const revokeMutation = useRevokeSession();
+  const createAgentMutation = useCreateAgentSession();
 
-  useEffect(() => {
-    apiListSessions(1)
-      .then(apply)
-      .catch((err) => setError(errMsg(err, 'Failed to load sessions')))
-      .finally(() => setLoading(false));
-  }, [apply]);
-
-  const load = useCallback(async (targetPage: number) => {
-    setLoading(true);
-    try {
-      apply(await apiListSessions(targetPage));
-    } catch (err) {
-      setError(errMsg(err, 'Failed to load sessions'));
-    } finally {
-      setLoading(false);
-    }
-  }, [apply]);
+  const sessions = sessionsQuery.data?.data ?? [];
+  const meta = sessionsQuery.data?.meta ?? { page: 1, per_page: 20, total: 0 };
 
   const flash = (message: string) => {
     setSuccess(message);
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  const handleCreate = async () => {
-    setCreating(true);
-    setError('');
-    try {
-      const res = await apiCreateAgentSession();
-      setAgentToken(res.refresh_token);
-      setCopied(false);
-      await load(page);
-    } catch (err) {
-      setError((err instanceof Error) ? err.message : 'Failed to create agent session');
-    } finally {
-      setCreating(false);
-    }
+  const handleCreate = () => {
+    createAgentMutation.mutate(undefined, {
+      onSuccess: (res) => {
+        setAgentToken(res.refresh_token);
+        setCopied(false);
+      },
+    });
   };
 
-  const handleRevoke = async (id: string) => {
-    setRevokingId(id);
-    setError('');
-    try {
-      await apiRevokeSession(id);
-      flash('Session revoked');
-      if (sessions.length === 1 && page > 1) {
-        await load(page - 1);
-      } else {
-        await load(page);
-      }
-    } catch (err) {
-      setError((err instanceof Error) ? err.message : 'Failed to revoke session');
-    } finally {
-      setRevokingId(null);
-    }
+  const handleRevoke = (id: string) => {
+    revokeMutation.mutate(id, {
+      onSuccess: () => {
+        flash('Session revoked');
+      },
+    });
   };
 
   const handleCopy = async () => {
@@ -102,7 +57,7 @@ export default function SettingsSessions() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // clipboard unavailable (e.g. non-secure context)
+      // clipboard unavailable
     }
   };
 
@@ -118,16 +73,18 @@ export default function SettingsSessions() {
         <button
           type="button"
           onClick={handleCreate}
-          disabled={creating}
+          disabled={createAgentMutation.isPending}
           className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {creating ? <LoadingSpinner size="sm" /> : null}
+          {createAgentMutation.isPending ? <LoadingSpinner size="sm" /> : null}
           New Agent Session
         </button>
       </div>
 
-      {error && (
-        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
+      {(sessionsQuery.error || createAgentMutation.error) && (
+        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
+          {sessionsQuery.error?.message || createAgentMutation.error?.message}
+        </div>
       )}
       {success && (
         <div className="rounded-lg bg-success/10 px-4 py-3 text-sm text-success">{success}</div>
@@ -161,7 +118,7 @@ export default function SettingsSessions() {
         </div>
       )}
 
-      {loading ? (
+      {sessionsQuery.isLoading ? (
         <div className="flex justify-center py-16">
           <LoadingSpinner size="lg" />
         </div>
@@ -199,7 +156,7 @@ export default function SettingsSessions() {
                   <button
                     type="button"
                     onClick={() => handleRevoke(session.id)}
-                    disabled={session.current || revokingId !== null}
+                    disabled={session.current || revokeMutation.isPending}
                     title={
                       session.current
                         ? 'You cannot revoke the session you are currently using'
@@ -207,7 +164,7 @@ export default function SettingsSessions() {
                     }
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors duration-200 hover:bg-slate-800 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
                   >
-                    {revokingId === session.id ? (
+                    {revokeMutation.isPending ? (
                       <LoadingSpinner size="sm" />
                     ) : (
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -222,10 +179,10 @@ export default function SettingsSessions() {
           </div>
 
           <Pagination
-            page={page}
+            page={meta.page}
             perPage={meta.per_page}
             total={meta.total}
-            onPageChange={(p) => load(p)}
+            onPageChange={setPage}
           />
         </>
       )}

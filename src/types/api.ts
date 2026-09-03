@@ -149,10 +149,10 @@ export interface TestEndpointResponse {
 export type SearchServersResponse = ServerListResponse;
 
 export interface ImportServersResponse {
-  success: boolean;
-  imported: number;
-  failed: number;
-  errors?: string[];
+  success_count: number;
+  successes: unknown[];
+  failed_count: number;
+  failed: string[];
 }
 
 export interface NotificationConfig {

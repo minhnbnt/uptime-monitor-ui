@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetServer, apiCalculateUptime, ApiError } from '../lib/api';
-import type { ServerObject, UptimeResponse } from '../types/api';
+import { useServer, useCalculateUptime } from '../lib/queries';
+import { ApiError } from '../lib/api';
+import type { UptimeResponse } from '../types/api';
 import OntimeChart from '../components/OntimeChart';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -33,11 +34,12 @@ function toLocalInput(d: Date): string {
 
 export default function ServerUptimeRange() {
   const { id } = useParams<{ id: string }>();
-  const serverId = id ? Number(id) : undefined;
+  const serverId = id ? Number(id) : 0;
 
-  const [server, setServer] = useState<ServerObject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
+  const serverQuery = useServer(serverId);
+  const calcMutation = useCalculateUptime(serverId);
+
+  const server = serverQuery.data?.data;
 
   const now = new Date();
   const [calcFrom, setCalcFrom] = useState(toLocalInput(new Date(now.getTime() - 24 * 60 * 60 * 1000)));
@@ -46,20 +48,8 @@ export default function ServerUptimeRange() {
   const [calcResult, setCalcResult] = useState<UptimeResponse | null>(null);
   const [lastCalcResolution, setLastCalcResolution] = useState('15m');
   const [calcError, setCalcError] = useState('');
-  const [calculating, setCalculating] = useState(false);
 
-  useEffect(() => {
-    if (!serverId) return;
-    apiGetServer(serverId)
-      .then((res) => { setServer(res.data); setLoadError(''); })
-      .catch((err) => { setLoadError(err instanceof ApiError ? err.message : 'Failed to load server'); })
-      .finally(() => setLoading(false));
-  }, [serverId]);
-
-  const handleCalculate = useCallback(async () => {
-    if (!serverId) return;
-    setCalcError('');
-
+  const handleCalculate = useCallback(() => {
     const from = new Date(calcFrom);
     const to = new Date(calcTo);
 
@@ -69,28 +59,27 @@ export default function ServerUptimeRange() {
       setCalcError('Range cannot exceed 90 days'); return;
     }
 
-    setCalculating(true);
-    try {
-      const result = await apiCalculateUptime(serverId, {
-        from: from.toISOString(),
-        to: to.toISOString(),
-        resolution: calcResolution,
-      });
-      setCalcResult(result);
-      setLastCalcResolution(calcResolution);
-    } catch (err) {
-      setCalcError(err instanceof ApiError ? err.message : 'Calculation failed');
-    } finally {
-      setCalculating(false);
-    }
-  }, [serverId, calcFrom, calcTo, calcResolution]);
+    setCalcError('');
+    calcMutation.mutate(
+      { from: from.toISOString(), to: to.toISOString(), resolution: calcResolution },
+      {
+        onSuccess: (result) => {
+          setCalcResult(result);
+          setLastCalcResolution(calcResolution);
+        },
+        onError: (err) => {
+          setCalcError(err instanceof ApiError ? err.message : 'Calculation failed');
+        },
+      },
+    );
+  }, [calcFrom, calcTo, calcResolution, calcMutation]);
 
-  if (loading) return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
-  if (loadError || !server) {
+  if (serverQuery.isLoading) return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
+  if (!server) {
     return (
       <div className="mx-auto max-w-3xl text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {loadError || 'Server not found'}
+          {serverQuery.error instanceof ApiError ? serverQuery.error.message : 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">Back to Dashboard</Link>
       </div>
@@ -142,10 +131,10 @@ export default function ServerUptimeRange() {
           </div>
           <button
             onClick={handleCalculate}
-            disabled={calculating}
+            disabled={calcMutation.isPending}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {calculating ? 'Calculating...' : 'Calculate'}
+            {calcMutation.isPending ? 'Calculating...' : 'Calculate'}
           </button>
         </div>
 

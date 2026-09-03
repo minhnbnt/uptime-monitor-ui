@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiDeleteServer, apiListServersOntimeByIds } from '../lib/api';
+import { useServer, useDeleteServer, useServerOntime, useServerStatuses } from '../lib/queries';
 import { ApiError } from '../lib/api';
-import { useServerStatuses } from '../lib/useServerStatuses';
-import type { ServerObject, OntimeStats } from '../types/api';
 import StatusBadge from '../components/StatusBadge';
 import OntimeChart from '../components/OntimeChart';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -11,59 +8,29 @@ import LoadingSpinner from '../components/LoadingSpinner';
 export default function ServerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [server, setServer] = useState<ServerObject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [ontimeStats, setOntimeStats] = useState<OntimeStats[]>([]);
+  const serverId = id ? Number(id) : 0;
 
-  useEffect(() => {
-    if (!id) return;
+  const serverQuery = useServer(serverId);
+  const deleteMutation = useDeleteServer();
+  const ontimeQuery = useServerOntime(id ? [serverId] : []);
+  const statuses = useServerStatuses(id ? [serverId] : []);
 
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-        setError('');
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 404) {
-          setError('Server not found');
-        } else {
-          setError(err.message ?? 'Failed to load server');
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-
-    apiListServersOntimeByIds([Number(id)])
-      .then((res) => {
-        const found = res.data.find((d) => d.server_id === Number(id));
-        setOntimeStats(found?.ontime_stats ?? []);
-      })
-      .catch(() => setOntimeStats([]));
-  }, [id]);
-
-  const statuses = useServerStatuses(id ? [Number(id)] : []);
+  const server = serverQuery.data?.data;
+  const ontimeStats = ontimeQuery.data?.data.find((d) => d.server_id === serverId)?.ontime_stats ?? [];
 
   const handleDelete = async () => {
     if (!server || !window.confirm(`Delete server "${server.name}"? This action cannot be undone.`)) return;
-    setDeleting(true);
-    try {
-      await apiDeleteServer(server.id);
-      navigate('/');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
-    } finally {
-      setDeleting(false);
-    }
+    deleteMutation.mutate(server.id, {
+      onSuccess: () => navigate('/'),
+      onError: (err) => {
+        if (err instanceof ApiError) {
+          // error shown via mutation error state
+        }
+      },
+    });
   };
 
-  if (loading) {
+  if (serverQuery.isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -71,11 +38,13 @@ export default function ServerDetail() {
     );
   }
 
-  if (error || !server) {
+  if (serverQuery.error || !server) {
     return (
       <div className="mx-auto max-w-3xl text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {serverQuery.error instanceof ApiError && serverQuery.error.status === 404
+            ? 'Server not found'
+            : serverQuery.error?.message || 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -86,7 +55,6 @@ export default function ServerDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {/* Back + actions */}
       <div className="flex items-center justify-between">
         <Link
           to="/"
@@ -129,18 +97,17 @@ export default function ServerDetail() {
           </Link>
           <button
             onClick={handleDelete}
-            disabled={deleting}
+            disabled={deleteMutation.isPending}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-danger/10 px-3.5 py-2 text-sm font-medium text-danger transition-all duration-200 hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            {deleting ? 'Deleting...' : 'Delete'}
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
 
-      {/* Server info card */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -168,7 +135,6 @@ export default function ServerDetail() {
         </div>
       </div>
 
-      {/* Endpoint info */}
       {server.endpoint && (
         <div className="rounded-xl border border-border bg-surface p-6">
           <h2 className="mb-4 text-lg font-semibold text-text-primary">Endpoint</h2>
@@ -197,7 +163,6 @@ export default function ServerDetail() {
         </div>
       )}
 
-      {/* Ontime chart */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <h2 className="mb-4 text-lg font-semibold text-text-primary">Uptime (Last 30 Days)</h2>
         <OntimeChart data={ontimeStats} height={250} />

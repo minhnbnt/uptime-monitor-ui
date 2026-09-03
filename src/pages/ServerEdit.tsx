@@ -1,50 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetServer, apiUpdateServer } from '../lib/api';
+import { useServer, useUpdateServer } from '../lib/queries';
 import { ApiError } from '../lib/api';
-import type { ServerObject } from '../types/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ServerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [server, setServer] = useState<ServerObject | null>(null);
+  const serverId = id ? Number(id) : 0;
+
+  const serverQuery = useServer(serverId);
+  const updateMutation = useUpdateServer(serverId);
+
+  const server = serverQuery.data?.data;
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // oxlint-ignore-next-line react(refs) — one-time init from query data
+  const initialized = useRef(false);
+  if (server && !initialized.current) {
+    setName(server.name);
+    initialized.current = true;
+  }
 
-  useEffect(() => {
-    if (!id) return;
-    apiGetServer(Number(id))
-      .then((res) => {
-        setServer(res.data);
-        setName(res.data.name);
-      })
-      .catch((err) => setError(err.message ?? 'Failed to load server'))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !server) return;
-    setError('');
-    setSaving(true);
-    try {
-      const res = await apiUpdateServer(server.id, { name: name.trim() });
-      navigate(`/servers/${res.data.id}`);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to update server');
-      }
-    } finally {
-      setSaving(false);
-    }
+    updateMutation.mutate(
+      { name: name.trim() },
+      {
+        onSuccess: (res) => navigate(`/servers/${res.data.id}`),
+      },
+    );
   };
 
-  if (loading) {
+  if (serverQuery.isLoading) {
     return (
       <div className="flex justify-center py-16">
         <LoadingSpinner size="lg" />
@@ -56,7 +44,7 @@ export default function ServerEdit() {
     return (
       <div className="mx-auto max-w-lg text-center">
         <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error || 'Server not found'}
+          {serverQuery.error?.message || 'Server not found'}
         </div>
         <Link to="/" className="mt-4 inline-block text-sm text-success hover:underline">
           Back to Dashboard
@@ -85,9 +73,11 @@ export default function ServerEdit() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border bg-surface p-6">
-        {error && (
+        {updateMutation.error && (
           <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
+            {updateMutation.error instanceof ApiError
+              ? updateMutation.error.message
+              : 'Failed to update server'}
           </div>
         )}
 
@@ -116,10 +106,10 @@ export default function ServerEdit() {
           </Link>
           <button
             type="submit"
-            disabled={saving || !name.trim()}
+            disabled={updateMutation.isPending || !name.trim()}
             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-success px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? <LoadingSpinner size="sm" /> : null}
+            {updateMutation.isPending ? <LoadingSpinner size="sm" /> : null}
             Save Changes
           </button>
         </div>
