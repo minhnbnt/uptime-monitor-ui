@@ -421,7 +421,7 @@ export function apiSendReport(): Promise<void> {
 }
 
 export function apiCalculateUptime(id: number, data: CalculateUptimeRequest): Promise<UptimeResponse> {
-  return request<UptimeResponse>(`/api/v1/servers/${id}/uptime`, {
+  return request<UptimeResponse>(`/api/v1/ontime/${id}/uptime`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
