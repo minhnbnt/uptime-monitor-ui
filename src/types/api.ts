@@ -160,3 +160,28 @@ export interface NotificationConfig {
   to_date?: string;
   digest_time?: string;
 }
+
+export interface CalculateUptimeRequest {
+  from: string;
+  to: string;
+  resolution: string;
+}
+
+export interface IntervalResult {
+  from: string;
+  to: string;
+  uptime: number;
+  has_data: boolean;
+}
+
+export interface UptimeResponse {
+  server_id: number;
+  uptime: number;
+  has_data: boolean;
+  partial: boolean;
+  from: string;
+  to: string;
+  total_seconds: number;
+  online_seconds: number;
+  intervals: IntervalResult[];
+}

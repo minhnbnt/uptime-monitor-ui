@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ServerDetail from './pages/ServerDetail';
+import ServerUptimeRange from './pages/ServerUptimeRange';
 import ServerCreate from './pages/ServerCreate';
 import ServerEdit from './pages/ServerEdit';
 import CheckMethodSetup from './pages/CheckMethodSetup';
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/servers/search" element={<ServerSearch />} />
             <Route path="/servers/import-export" element={<ServerImportExport />} />
             <Route path="/servers/:id" element={<ServerDetail />} />
+            <Route path="/servers/:id/uptime-range" element={<ServerUptimeRange />} />
             <Route path="/servers/:id/edit" element={<ServerEdit />} />
             <Route path="/servers/:id/check-method" element={<CheckMethodSetup />} />
 

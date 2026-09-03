@@ -20,6 +20,8 @@ import type {
   SearchServersResponse,
   ImportServersResponse,
   NotificationConfig,
+  CalculateUptimeRequest,
+  UptimeResponse,
 } from '../types/api';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
@@ -429,6 +431,13 @@ export function apiUpdateNotificationConfig(config: NotificationConfig): Promise
 export function apiSendReport(): Promise<void> {
   return request<void>('/api/v1/notifications/send-report', {
     method: 'POST',
+  });
+}
+
+export function apiCalculateUptime(id: number, data: CalculateUptimeRequest): Promise<UptimeResponse> {
+  return request<UptimeResponse>(`/api/v1/servers/${id}/uptime`, {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 
