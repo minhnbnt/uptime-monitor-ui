@@ -56,6 +56,18 @@ export class SessionExpiredError extends Error {
   }
 }
 
+// IANA timezone của browser (vd "Asia/Ho_Chi_Minh"). Server không bao giờ
+// tự biết timezone qua HTTP thuần, nên client tự khai qua header này.
+// Chỉ dùng để hiển thị/format giờ — đừng dùng cho phân quyền hay tính tiền.
+export function getUserTimezone(): string | undefined {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return tz || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // Access token — in-memory only
 let accessToken: string | null = null;
 
@@ -103,9 +115,13 @@ export async function initAuth(): Promise<UserProfile | null> {
   if (!refreshToken) return null;
 
   try {
+    const timezone = getUserTimezone();
     const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(timezone ? { 'X-Timezone': timezone } : {}),
+      },
       body: JSON.stringify({ refresh_token: refreshToken } satisfies RefreshTokenRequest),
     });
     if (!res.ok) {
@@ -132,9 +148,13 @@ export async function attemptRefresh(): Promise<boolean> {
 
   refreshPromise = (async () => {
     try {
+      const timezone = getUserTimezone();
       const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(timezone ? { 'X-Timezone': timezone } : {}),
+        },
         body: JSON.stringify({ refresh_token: refreshToken } satisfies RefreshTokenRequest),
       });
       if (!res.ok) {
@@ -162,6 +182,11 @@ async function request<T>(
 ): Promise<T> {
   const token = getAccessToken();
   const headers: Record<string, string> = {};
+
+  const timezone = getUserTimezone();
+  if (timezone) {
+    headers['X-Timezone'] = timezone;
+  }
 
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';

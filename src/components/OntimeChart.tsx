@@ -22,6 +22,22 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function formatDateTime(dateStr: string) {
+  const d = new Date(dateStr);
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const isMidnightUTC = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (isMidnightUTC) return date;
+  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${date} ${time}`;
+}
+
+function formatTick(dateStr: string) {
+  const d = new Date(dateStr);
+  const isMidnightUTC = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (isMidnightUTC) return formatDate(dateStr);
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 function fmtDuration(seconds: number) {
   if (seconds >= 3600) {
     const h = Math.floor(seconds / 3600);
@@ -69,16 +85,13 @@ function renderNaDot(props: { cx?: number; cy?: number }) {
 
 function OntimeTooltip({
   active,
-  label,
-  data,
+  payload,
 }: {
   active?: boolean;
-  label?: string | number;
-  data: OntimeStats[];
+  payload?: { payload: ChartPoint }[];
 }) {
-  if (!active || label == null) return null;
-  const key = String(label).slice(0, 10);
-  const p = data.find((d) => d.date.slice(0, 10) === key);
+  if (!active || !payload || payload.length === 0) return null;
+  const p = payload[0].payload;
   if (!p) return null;
   return (
     <div
@@ -92,7 +105,7 @@ function OntimeTooltip({
         whiteSpace: 'nowrap',
       }}
     >
-      <p style={{ margin: 0, color: '#F8FAFC' }}>{formatDate(p.date)}</p>
+      <p style={{ margin: 0, color: '#F8FAFC' }}>{formatDateTime(p.date)}</p>
       {p.has_data === false ? (
         <p style={{ margin: '4px 0 0', color: '#94A3B8' }}>No data</p>
       ) : (
@@ -138,7 +151,7 @@ export default function OntimeChart({ data, height = 200 }: Props) {
         <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
         <XAxis
           dataKey="date"
-          tickFormatter={formatDate}
+          tickFormatter={formatTick}
           stroke="#64748b"
           fontSize={11}
           tickLine={false}
@@ -155,7 +168,7 @@ export default function OntimeChart({ data, height = 200 }: Props) {
           tickFormatter={(v: number) => `${v}%`}
         />
         <YAxis yAxisId="na" hide domain={[0, 1]} />
-        <Tooltip content={<OntimeTooltip data={data} />} cursor={{ stroke: '#475569', strokeDasharray: '3 3' }} />
+        <Tooltip content={<OntimeTooltip />} cursor={{ stroke: '#475569', strokeDasharray: '3 3' }} />
         <Area
           yAxisId="main"
           type="monotone"

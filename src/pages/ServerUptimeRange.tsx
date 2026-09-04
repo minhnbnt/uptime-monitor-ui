@@ -20,13 +20,6 @@ function formatSeconds(s: number): string {
   return `${(s / 86400).toFixed(1)}d`;
 }
 
-function resolutionMs(r: string): number {
-  const m = r.match(/^(\d+)(m|h)$/);
-  if (!m) return 15 * 60 * 1000;
-  const n = Number(m[1]);
-  return m[2] === 'h' ? n * 3600 * 1000 : n * 60 * 1000;
-}
-
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -46,7 +39,6 @@ export default function ServerUptimeRange() {
   const [calcTo, setCalcTo] = useState(toLocalInput(now));
   const [calcResolution, setCalcResolution] = useState('15m');
   const [calcResult, setCalcResult] = useState<UptimeResponse | null>(null);
-  const [lastCalcResolution, setLastCalcResolution] = useState('15m');
   const [calcError, setCalcError] = useState('');
 
   const handleCalculate = useCallback(() => {
@@ -65,7 +57,6 @@ export default function ServerUptimeRange() {
       {
         onSuccess: (result) => {
           setCalcResult(result);
-          setLastCalcResolution(calcResolution);
         },
         onError: (err) => {
           setCalcError(err instanceof ApiError ? err.message : 'Calculation failed');
@@ -169,19 +160,13 @@ export default function ServerUptimeRange() {
               </div>
             </div>
             {(() => {
-              const resMs = resolutionMs(lastCalcResolution);
-              const pts: { date: string; stats: number; has_data: boolean; unknown_seconds: number }[] = [];
-              for (let i = 0; i < calcResult.intervals.length; i++) {
-                const iv = calcResult.intervals[i];
-                const fromMs = new Date(iv.from).getTime();
-                const toMs = new Date(iv.to).getTime();
-                const isLast = i === calcResult.intervals.length - 1;
-                pts.push({ date: iv.from, stats: iv.uptime, has_data: iv.has_data ?? true, unknown_seconds: 0 });
-                if (isLast) {
-                  pts.push({ date: iv.to, stats: iv.uptime, has_data: iv.has_data ?? true, unknown_seconds: 0 });
-                } else if (toMs - fromMs > resMs) {
-                  pts.push({ date: new Date(toMs - resMs).toISOString(), stats: iv.uptime, has_data: iv.has_data ?? true, unknown_seconds: 0 });
-                }
+              const pts: { date: string; stats: number; has_data: boolean; unknown_seconds: number }[] =
+                calcResult.intervals.map((iv) => ({
+                  date: iv.from, stats: iv.uptime, has_data: iv.has_data ?? true, unknown_seconds: 0,
+                }));
+              const last = calcResult.intervals[calcResult.intervals.length - 1];
+              if (last) {
+                pts.push({ date: last.to, stats: last.uptime, has_data: last.has_data ?? true, unknown_seconds: 0 });
               }
               return <OntimeChart data={pts} height={200} />;
             })()}
